@@ -1,0 +1,88 @@
+﻿<Window x:Class="FitnessTrackerProject.Window1"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FitnessTrackerProject"
+        mc:Ignorable="d"
+        Title="Create Profile" Height="600" Width="400" WindowStartupLocation="CenterScreen">
+
+    <Grid Background="#F4F4F9">
+        <Border Background="White" CornerRadius="10" Padding="20" Margin="20"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <StackPanel>
+
+                <TextBlock Text="Create Your Profile" FontSize="20" FontWeight="Bold" 
+                           HorizontalAlignment="Center" Margin="0,0,0,20"/>
+
+                <!-- Profile Picture Section -->
+                <Grid Width="100" Height="100" HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <!-- A gray placeholder circle that shows before an image is uploaded -->
+                    <Ellipse Fill="#E0E0E0" />
+
+                    <!-- The actual profile image, clipped into a perfect circle -->
+                    <Image x:Name="ProfileImage" Stretch="UniformToFill">
+                        <Image.Clip>
+                            <EllipseGeometry Center="50,50" RadiusX="50" RadiusY="50" />
+                        </Image.Clip>
+                    </Image>
+                </Grid>
+
+                <Button Content="Upload Picture" Width="120" Height="25" 
+                        HorizontalAlignment="Center" Margin="0,0,0,20" Click="UploadPicture_Click"/>
+
+                <!-- Input Form Grid -->
+                <Grid Margin="10,0,10,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- Make sure you have 5 RowDefinitions now! -->
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <!-- NEW ROW -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Paste this right below your RoleComboBox -->
+                    <TextBlock Text="Password:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,15" FontWeight="SemiBold"/>
+                    <PasswordBox x:Name="PasswordInput" Grid.Row="4" Grid.Column="1" Height="25" Margin="0,0,0,15" Padding="2"/>
+
+                    <!-- Name -->
+                    <TextBlock Text="Username:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,15" FontWeight="SemiBold"/>
+                    <TextBox x:Name="NameTextBox" Grid.Row="0" Grid.Column="1" Height="25" Margin="0,0,0,15" Padding="2"/>
+
+                    <!-- Age -->
+                    <TextBlock Text="Age:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,15" FontWeight="SemiBold"/>
+                    <TextBox x:Name="AgeTextBox" Grid.Row="1" Grid.Column="1" Height="25" Margin="0,0,0,15" Padding="2"/>
+
+                    <!-- Gender -->
+                    <TextBlock Text="Gender:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,15" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="GenderComboBox" Grid.Row="2" Grid.Column="1" Height="25" Margin="0,0,0,15">
+                        <ComboBoxItem Content="Male"/>
+                        <ComboBoxItem Content="Female"/>
+                        <ComboBoxItem Content="Other"/>
+                        <ComboBoxItem Content="Prefer not to say"/>
+                    </ComboBox>
+
+                    <!-- Coach / Trainee -->
+                    <TextBlock Text="Role:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,15" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="RoleComboBox" Grid.Row="3" Grid.Column="1" Height="25" Margin="0,0,0,15">
+                        <ComboBoxItem Content="Coach"/>
+                        <ComboBoxItem Content="Trainee"/>
+                    </ComboBox>
+                </Grid>
+
+                <!-- Save Button -->
+                <Button Content="Save Profile" Height="35" Margin="10,10,10,0" 
+                        Background="#4CAF50" Foreground="White" FontWeight="Bold" FontSize="14"
+                        Click="SaveProfile_Click"/>
+                <Button Content="Already have an account? Log In here" Click="GoToLogin_Click" Margin="0,10,0,0" Background="Transparent" BorderBrush="Transparent" Foreground="Blue" Cursor="Hand"/>
+
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
