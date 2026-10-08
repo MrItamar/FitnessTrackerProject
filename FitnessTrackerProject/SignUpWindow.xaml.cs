@@ -1,22 +1,22 @@
-﻿using System;
-using System.Windows;
-using System.Windows.Media.Imaging;
+﻿using FitnessTrackerProject.Models;
 using Microsoft.Win32;
+using System;
 using System.Data.OleDb;
 using System.Security.Cryptography; // Added for password security
 using System.Text;                  // Added for password security
-using FitnessTrackerProject.Models;
+using System.Windows;
+using System.Windows.Media.Imaging;
 
 namespace FitnessTrackerProject
 {
-    public partial class Window1 : Window
+    public partial class SignUpWindow : Window
     {
         private string profilePicturePath = "";
 
         // Make sure this path points to your actual Access file!
         string connectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=..\..\DataBase\FitnessTrackerDB1.accdb;";
 
-        public Window1()
+        public SignUpWindow()
         {
             InitializeComponent();
         }

@@ -7,20 +7,118 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-
+        <StackPanel VerticalAlignment="Center" Height="122" Width="286" Grid.Column="1">
+            <StackPanel.RenderTransform>
+                <TranslateTransform x:Name="MainContentTransform"
+                        X="0"/>
+            </StackPanel.RenderTransform>
             <TextBlock Text="MediaPipe ONNX Fitness Tracker" 
-                       FontSize="18" FontWeight="Bold" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+                FontSize="18" FontWeight="Bold" Margin="0,0,0,20" HorizontalAlignment="Center"/>
 
             <!-- The Plank Mode Checkbox -->
             <CheckBox x:Name="PlankModeCheckBox" 
-                      Content="Horizontal Exercise Mode (Planks/Pushups)" 
-                      FontSize="14" Margin="0,0,0,20" HorizontalAlignment="Center"/>
+            Content="Horizontal Exercise Mode (Planks/Pushups)" 
+            FontSize="14" Margin="0,0,0,20" HorizontalAlignment="Center"/>
 
             <!-- The Video Selection Button -->
             <Button Content="Select Video" Width="150" Height="40" 
-                    FontSize="14" Click="SelectVideoButton_Click"/>
+            FontSize="14" Click="SelectVideoButton_Click"/>
 
         </StackPanel>
-    </Grid>     
+
+        <!-- Sidebar -->
+        <Border x:Name="Sidebar"
+        Width="250"
+        HorizontalAlignment="Left"
+        VerticalAlignment="Stretch"
+        Background="AliceBlue"
+        Visibility="Hidden"
+        Panel.ZIndex="20">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <StackPanel Grid.Row="0" Margin="5,30,0,35">
+                    <TextBlock Text="PROJECT BAGRUT"
+                       Foreground="Black"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1"
+                    Margin="15,0">
+
+                    <Button Content="WorkoutHub"
+                    Click="SwitchScreen"
+                    Tag="0"
+                    Height="50"
+                    Margin="0,0,0,8"
+                    HorizontalContentAlignment="Left"
+                    Padding="18,0"
+                    Background="Transparent"
+                    Foreground="Black"
+                    BorderThickness="0"
+                    FontSize="14"/>
+
+                    <Button Content="CoachStudio"
+                    Click="SwitchScreen"
+                    Tag="1"
+                    Height="50"
+                    Margin="0,0,0,8"
+                    HorizontalContentAlignment="Left"
+                    Padding="18,0"
+                    Background="Transparent"
+                    Foreground="Black"
+                    BorderThickness="0"
+                    FontSize="14"/>
+
+                    <Button Content="Profile"
+                    Click="SwitchScreen"
+                    Tag="2"
+                    Height="50"
+                    HorizontalContentAlignment="Left"
+                    Padding="18,0"
+                    Background="Transparent"
+                    Foreground="Black"
+                    BorderThickness="0"
+                    FontSize="14"/>
+                </StackPanel>
+
+                <!-- Footer -->
+                <TextBlock Grid.Row="2"
+                   Text="PROJECT BAGRUT"
+                   Margin="25,20"
+                   Foreground="Black"
+                   FontSize="11"/>
+            </Grid>
+        </Border>
+
+        <!-- Menu button -->
+        <Button Width="20"
+        Height="21"
+        HorizontalAlignment="Left"
+        VerticalAlignment="Top"
+        Background="Transparent"
+        BorderThickness="0"
+        Padding="0"
+        Click="OpenSidebar"
+        Panel.ZIndex="30">
+
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <ContentPresenter/>
+                </ControlTemplate>
+            </Button.Template>
+
+            <Image Source="/Images/OpenSidebar.png"
+           Width="20"
+           Height="20"/>
+        </Button>
+    </Grid>
 </Window>

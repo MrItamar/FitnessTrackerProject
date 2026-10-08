@@ -8,7 +8,6 @@ namespace FitnessTrackerProject
 {
     public partial class LoginWindow : Window
     {
-        // IMPORTANT: Make sure this is the exact same path you used in Window1!
         string connectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\Users\Itamar\source\repos\FitnessTrackerProject\FitnessTrackerProject\DataBase\FitnessTrackerDB1.accdb;";
 
         public LoginWindow()
@@ -83,8 +82,7 @@ namespace FitnessTrackerProject
 
         private void GoToSignUp_Click(object sender, RoutedEventArgs e)
         {
-            // Takes the user back to the registration screen
-            Window1 signUpWindow = new Window1();
+            SignUpWindow signUpWindow = new SignUpWindow();
             signUpWindow.Show();
             this.Close();
         }
