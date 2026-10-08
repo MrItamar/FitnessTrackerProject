@@ -1,0 +1,207 @@
+﻿<UserControl x:Class="FitnessTrackerProject.ProfileUserControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:FitnessTrackerProject"
+             mc:Ignorable="d"
+             d:DesignWidth="760" d:DesignHeight="520"
+             Background="#F3F4F6">
+
+    <UserControl.Resources>
+
+        <!-- Small grey label above each field -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Margin" Value="2,0,0,6"/>
+        </Style>
+
+        <!-- Every TextBox and ComboBox in this screen gets the same size and colors -->
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+        </Style>
+
+        <!-- Main blue button -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Padding" Value="28,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2563EB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1D4ED8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Outlined secondary button -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#3B82F6"/>
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24">
+
+            <!-- White card in the middle -->
+            <Border Background="White" CornerRadius="16" Padding="32" MaxWidth="760"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="2" Opacity="0.12"/>
+                </Border.Effect>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="170"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT: profile picture -->
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,8,24,0">
+                        <Grid Width="120" Height="120">
+                            <!-- placeholder shown while there is no picture -->
+                            <Ellipse Fill="#E5E7EB"/>
+                            <TextBlock Text="&#xE77B;" FontFamily="Segoe MDL2 Assets" FontSize="48"
+                                       Foreground="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            <!-- the real picture (same name as before), cut into a circle -->
+                            <Image x:Name="imgProfile" Width="120" Height="120" Stretch="UniformToFill">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="60,60" RadiusX="60" RadiusY="60"/>
+                                </Image.Clip>
+                            </Image>
+
+                            <!-- blue ring around it -->
+                            <Ellipse Stroke="#3B82F6" StrokeThickness="3" IsHitTestVisible="False"/>
+                        </Grid>
+
+                        <Button Content="Change Picture" Style="{StaticResource SecondaryButton}"
+                                Margin="0,16,0,0" Click="BtnChangePic_Click"/>
+                    </StackPanel>
+
+                    <!-- RIGHT: title + form -->
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="My Profile" FontSize="26" FontWeight="Bold" Foreground="#111827"/>
+                        <TextBlock Text="Update your personal details" FontSize="13" Foreground="#6B7280" Margin="0,2,0,22"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Username (full width) -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,16">
+                                <TextBlock Text="Username" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtUsername" MaxLength="30"/>
+                            </StackPanel>
+
+                            <!-- Age | Gender -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,16">
+                                <TextBlock Text="Age" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtAge" MaxLength="3" PreviewTextInput="Digits_PreviewTextInput"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,16">
+                                <TextBlock Text="Gender" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="cmbGender">
+                                    <ComboBoxItem Content="Male"/>
+                                    <ComboBoxItem Content="Female"/>
+                                    <ComboBoxItem Content="Other"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Height | Weight -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,16">
+                                <TextBlock Text="Height (cm)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtHeight" MaxLength="6" PreviewTextInput="Decimal_PreviewTextInput"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,16">
+                                <TextBlock Text="Weight (kg)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtWeight" MaxLength="6" PreviewTextInput="Decimal_PreviewTextInput"/>
+                            </StackPanel>
+
+                            <!-- Fitness goal (full width). Editable, so you can still type your own goal. -->
+                            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,24">
+                                <TextBlock Text="Fitness Goal" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox x:Name="cmbFitnessGoal" IsEditable="True">
+                                    <ComboBoxItem Content="Lose Weight"/>
+                                    <ComboBoxItem Content="Build Muscle"/>
+                                    <ComboBoxItem Content="Maintain Weight"/>
+                                    <ComboBoxItem Content="Improve Endurance"/>
+                                    <ComboBoxItem Content="General Fitness"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <Button Content="Save Changes" Style="{StaticResource PrimaryButton}"
+                                HorizontalAlignment="Right" Click="BtnSave_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

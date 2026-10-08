@@ -1,9 +1,10 @@
 ﻿using FitnessTrackerProject.Models;
+using FitnessTrackerProject.Scripts;
 using Microsoft.Win32;
 using System;
 using System.Data.OleDb;
-using System.Security.Cryptography; // Added for password security
-using System.Text;                  // Added for password security
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows;
 using System.Windows.Media.Imaging;
 
@@ -12,9 +13,6 @@ namespace FitnessTrackerProject
     public partial class SignUpWindow : Window
     {
         private string profilePicturePath = "";
-
-        // Make sure this path points to your actual Access file!
-        string connectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=..\..\DataBase\FitnessTrackerDB1.accdb;";
 
         public SignUpWindow()
         {
@@ -39,8 +37,6 @@ namespace FitnessTrackerProject
             }
         }
 
-        // --- NEW SECURITY FUNCTION ---
-        // Scrambles the password so it is unreadable in your Access database
         private string HashPassword(string rawPassword)
         {
             using (SHA256 sha256Hash = SHA256.Create())
@@ -57,14 +53,12 @@ namespace FitnessTrackerProject
 
         private void SaveProfile_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Get UI Inputs
             string name = NameTextBox.Text;
             string ageText = AgeTextBox.Text;
             string gender = GenderComboBox.Text;
             string role = RoleComboBox.Text;
-            string password = PasswordInput.Password; // Grab from the new PasswordBox
+            string password = PasswordInput.Password;
 
-            // 2. Validate Inputs
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(ageText) ||
                 string.IsNullOrWhiteSpace(role) || string.IsNullOrWhiteSpace(password))
             {
@@ -72,7 +66,6 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // 3. OOP Implementation (Polymorphism)
             BaseUser newUser;
 
             if (role == "Coach")
@@ -84,11 +77,10 @@ namespace FitnessTrackerProject
                 newUser = new Trainee();
             }
 
-            // 4. OOP Implementation (Encapsulation)
             try
             {
                 newUser.Username = name;
-                newUser.Age = Convert.ToInt32(ageText); // Validates age 10-120
+                newUser.Age = Convert.ToInt32(ageText);
                 newUser.Gender = gender;
                 newUser.ProfilePicPath = profilePicturePath;
             }
@@ -103,64 +95,71 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // 5. Database Interaction
+            int newUserId = 0;
             try
             {
-                using (OleDbConnection connection = new OleDbConnection(connectionString))
+                // Check if username exists using DatabaseHelper
+                object countResult = DatabaseHelper.ExecuteScalar(
+                    "SELECT COUNT(*) FROM Users WHERE Username = @Name",
+                    paramsCol => paramsCol.AddWithValue("@Name", newUser.Username)
+                );
+
+                int userCount = Convert.ToInt32(countResult);
+                if (userCount > 0)
                 {
-                    connection.Open();
-
-                    // Check if the username is already taken
-                    string checkQuery = "SELECT COUNT(*) FROM Users WHERE Username = @Name";
-                    using (OleDbCommand checkCommand = new OleDbCommand(checkQuery, connection))
-                    {
-                        // Parameterized query prevents SQL Injection here
-                        checkCommand.Parameters.AddWithValue("@Name", newUser.Username);
-
-                        int userCount = (int)checkCommand.ExecuteScalar();
-
-                        if (userCount > 0)
-                        {
-                            MessageBox.Show("A profile with this username already exists. Please choose a different name.", "User Exists", MessageBoxButton.OK, MessageBoxImage.Warning);
-                            return; // Stop the code here
-                        }
-                    }
-
-                    // Scramble the password BEFORE saving it
-                    string securedPassword = HashPassword(password);
-
-                    // Notice the brackets [Password] - Access requires this because Password is a reserved word
-                    string insertQuery = "INSERT INTO Users (Username, Age, Gender, UserRole, ProfilePicPath, [Password]) VALUES (@Name, @Age, @Gender, @Role, @PicPath, @Password)";
-
-                    using (OleDbCommand insertCommand = new OleDbCommand(insertQuery, connection))
-                    {
-                        // Parameterized queries prevent SQL Injection here
-                        insertCommand.Parameters.AddWithValue("@Name", newUser.Username);
-                        insertCommand.Parameters.AddWithValue("@Age", newUser.Age);
-                        insertCommand.Parameters.AddWithValue("@Gender", newUser.Gender);
-                        insertCommand.Parameters.AddWithValue("@Role", newUser.GetUserRole());
-                        insertCommand.Parameters.AddWithValue("@PicPath", newUser.ProfilePicPath);
-                        insertCommand.Parameters.AddWithValue("@Password", securedPassword);
-
-                        insertCommand.ExecuteNonQuery();
-                    }
+                    MessageBox.Show("A profile with this username already exists. Please choose a different name.", "User Exists", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
 
-                // 6. Show success and switch windows
+                string securedPassword = HashPassword(password);
+
+                // Insert into Users table using DatabaseHelper
+                DatabaseHelper.ExecuteNonQuery(
+                    "INSERT INTO Users (Username, Age, Gender, UserRole, ProfilePicPath, [Password]) VALUES (?, ?, ?, ?, ?, ?)",
+                    paramsCol => {
+                        paramsCol.AddWithValue("?", newUser.Username);
+                        paramsCol.AddWithValue("?", newUser.Age);
+                        paramsCol.AddWithValue("?", newUser.Gender);
+                        paramsCol.AddWithValue("?", newUser.GetUserRole());
+                        paramsCol.AddWithValue("?", newUser.ProfilePicPath ?? "");
+                        paramsCol.AddWithValue("?", securedPassword);
+                    }
+                );
+
+                // Get the generated user ID using DatabaseHelper
+                object idResult = DatabaseHelper.ExecuteScalar("SELECT @@IDENTITY");
+                newUserId = Convert.ToInt32(idResult);
+
+                // Insert matching row into Trainees or Trainers table
+                if (role == "Coach")
+                {
+                    DatabaseHelper.ExecuteNonQuery(
+                        "INSERT INTO Trainers (UserID, Specialty, Bio) VALUES (?, '', '')",
+                        paramsCol => paramsCol.AddWithValue("?", newUserId)
+                    );
+                }
+                else
+                {
+                    DatabaseHelper.ExecuteNonQuery(
+                        "INSERT INTO Trainees (UserID, Height, Weight, FitnessGoal) VALUES (?, 0, 0, '')",
+                        paramsCol => paramsCol.AddWithValue("?", newUserId)
+                    );
+                }
+
                 MessageBox.Show($"{newUser.GetUserRole()} profile successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                MainWindow mainAppWindow = new MainWindow();
+                MainWindow mainAppWindow = new MainWindow(newUserId);
                 mainAppWindow.Show();
                 this.Close();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving to database: {ex.Message}\n\nMake sure your Access file is closed and has a Password column (Short Text)!", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Error saving to database: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void GoToLogin_Click(object sender, RoutedEventArgs e)
         {
-            // Opens the login window and closes the sign-up window
             LoginWindow loginWindow = new LoginWindow();
             loginWindow.Show();
             this.Close();

@@ -1,21 +1,19 @@
-﻿using System;
-using System.Windows;
+﻿using FitnessTrackerProject.Scripts;
+using System;
 using System.Data.OleDb;
 using System.Security.Cryptography;
 using System.Text;
+using System.Windows;
 
 namespace FitnessTrackerProject
 {
     public partial class LoginWindow : Window
     {
-        string connectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=C:\Users\Itamar\source\repos\FitnessTrackerProject\FitnessTrackerProject\DataBase\FitnessTrackerDB1.accdb;";
-
         public LoginWindow()
         {
             InitializeComponent();
         }
 
-        // We need the exact same hashing function so the passwords match
         private string HashPassword(string rawPassword)
         {
             using (SHA256 sha256Hash = SHA256.Create())
@@ -45,25 +43,26 @@ namespace FitnessTrackerProject
 
             try
             {
-                using (OleDbConnection connection = new OleDbConnection(connectionString))
+                // Uses DatabaseHelper to get the connection automatically
+                using (OleDbConnection connection = DatabaseHelper.GetConnection())
                 {
                     connection.Open();
 
-                    // Check if there is a row where BOTH the username and the hashed password match
-                    string query = "SELECT COUNT(*) FROM Users WHERE Username = @Name AND [Password] = @Password";
+                    string query = "SELECT ID FROM Users WHERE Username = @Name AND [Password] = @Password";
                     using (OleDbCommand command = new OleDbCommand(query, connection))
                     {
                         command.Parameters.AddWithValue("@Name", username);
                         command.Parameters.AddWithValue("@Password", securedPassword);
 
-                        int matchCount = (int)command.ExecuteScalar();
+                        object result = command.ExecuteScalar();
 
-                        if (matchCount > 0)
+                        if (result != null && result != DBNull.Value)
                         {
+                            int foundUserId = Convert.ToInt32(result);
+
                             MessageBox.Show("Login Successful!", "Welcome", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                            // Go to the AI Tracking window
-                            MainWindow mainAppWindow = new MainWindow();
+                            MainWindow mainAppWindow = new MainWindow(foundUserId);
                             mainAppWindow.Show();
                             this.Close();
                         }

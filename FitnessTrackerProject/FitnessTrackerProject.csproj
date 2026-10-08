@@ -119,6 +119,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ProfileUserControl.xaml.cs">
+      <DependentUpon>ProfileUserControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Scripts\BoxTracker.cs" />
     <Compile Include="LoginWindow.xaml.cs">
       <DependentUpon>LoginWindow.xaml</DependentUpon>
@@ -126,6 +129,7 @@
     <Compile Include="Models\BaseUser.cs" />
     <Compile Include="Models\Coach.cs" />
     <Compile Include="Models\Trainee.cs" />
+    <Compile Include="Scripts\DatabaseHelper.cs" />
     <Compile Include="Scripts\KeyPoints.cs" />
     <Compile Include="Scripts\PlankChecker.cs" />
     <Compile Include="Scripts\PoseDrawer.cs" />
@@ -133,6 +137,9 @@
     <Compile Include="Scripts\SquatCounter.cs" />
     <Compile Include="SignUpWindow.xaml.cs">
       <DependentUpon>SignUpWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="WorkoutHubUserControl.xaml.cs">
+      <DependentUpon>WorkoutHubUserControl.xaml</DependentUpon>
     </Compile>
     <Page Include="LoginWindow.xaml">
       <SubType>Designer</SubType>
@@ -150,7 +157,15 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="ProfileUserControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="SignUpWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="WorkoutHubUserControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

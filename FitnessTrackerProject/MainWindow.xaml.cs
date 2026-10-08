@@ -4,6 +4,7 @@ using OpenCvSharp;
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Controls;
 
 namespace FitnessTrackerProject
 {
@@ -27,10 +28,13 @@ namespace FitnessTrackerProject
 
         private PoseEstimator _estimator;
         private double _videoFps = 30.0;             // remembered from pass 1, used for the plank timer
-
-        public MainWindow()
+        private int currentUserId;
+        public MainWindow() { }
+        public MainWindow(int userId)
         {
             InitializeComponent();
+            currentUserId = userId;
+            MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
             LoadModel();
         }
 
@@ -46,27 +50,13 @@ namespace FitnessTrackerProject
             }
         }
 
-        private void SelectVideoButton_Click(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "Video Files|*.mp4;*.avi;*.mkv;*.mov|All Files|*.*";
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                ProcessVideo(openFileDialog.FileName);
-            }
-        }
-
-        public void ProcessVideo(string video)
+        public void ProcessVideo(string video, bool isPlankMode)
         {
             if (_estimator == null)
             {
                 MessageBox.Show("Cannot process video. AI model failed to load.");
                 return;
             }
-
-            bool isPlankMode = false;
-            Dispatcher.Invoke(() => { isPlankMode = PlankModeCheckBox.IsChecked == true; });
 
             // PASS 1: run the AI on every frame and remember the results (ESC cancels)
             List<FrameResult> frames = AnalyzeVideo(video, isPlankMode);
@@ -84,8 +74,6 @@ namespace FitnessTrackerProject
 
             var plank = new PlankChecker();
 
-            // PASS 2 (optional): play the video back with the skeleton and the counters.
-            // Otherwise we just count silently and show the result.
             if (ShowPlayback)
                 PlayBack(video, frames, isPlankMode, squats, plank);
             else
@@ -293,7 +281,25 @@ namespace FitnessTrackerProject
         }
         private void SwitchScreen(object sender, RoutedEventArgs e)
         {
-            //
+            Button btn = sender as Button;
+            int screenIndex = Convert.ToInt32(btn.Tag);
+
+            switch (screenIndex)
+            {
+                case 0:
+                    MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
+                    break;
+
+                case 1:
+                    // CoachStudio
+                    MessageBox.Show("Coach Studio selected");
+                    break;
+
+                case 2:
+                    // Profile
+                    MainFrame.Navigate(new ProfileUserControl(currentUserId));
+                    break;
+            }
         }
     }
 }
