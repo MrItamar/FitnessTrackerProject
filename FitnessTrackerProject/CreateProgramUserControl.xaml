@@ -1,0 +1,404 @@
+﻿<UserControl x:Class="FitnessTrackerProject.CreateProgramUserControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:FitnessTrackerProject"
+             mc:Ignorable="d" 
+            d:DesignHeight="700" d:DesignWidth="1000" Background="#F3F4F6">
+    <UserControl.Resources>
+
+        <Style x:Key="CardTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+        </Style>
+
+        <!-- Main blue button (same as WorkoutHub) -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Padding" Value="26,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2563EB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1D4ED8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Outline button -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#3B82F6"/>
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#DBEAFE"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Small red-on-hover icon button (delete) -->
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="8" Width="32" Height="32">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FEE2E2"/>
+                                <Setter Property="Foreground" Value="#DC2626"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Text input with rounded border -->
+        <Style x:Key="Field" TargetType="TextBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#111827"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd" Background="White" BorderBrush="#E5E7EB" BorderThickness="1.5"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Exercise button in the library -->
+        <Style x:Key="LibraryButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="White" BorderBrush="#E5E7EB" BorderThickness="1.5"
+                                CornerRadius="10" Padding="12,9">
+                            <Grid>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                                <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                           Foreground="#3B82F6" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="24,16,24,24" MaxWidth="960" HorizontalAlignment="Center">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header (left margin leaves room for the menu button) -->
+            <Grid Grid.Row="0" Margin="48,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="Coach Studio" FontSize="22" FontWeight="SemiBold" Foreground="#111827"/>
+                    <TextBlock Text="Build a multi-day program for your trainees" FontSize="13" Foreground="#6B7280"/>
+                </StackPanel>
+                <Button Content="Save program" Style="{StaticResource PrimaryButton}"
+                        HorizontalAlignment="Right" Click="SaveProgram_Click"/>
+            </Grid>
+
+            <!-- Program details -->
+            <Border Grid.Row="1" Background="White" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Program details" Style="{StaticResource CardTitle}" Margin="0,0,0,10"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Program name" FontSize="12" Foreground="#6B7280" Margin="0,0,0,4"/>
+                            <TextBox x:Name="txtProgramName" Style="{StaticResource Field}" Text="Beginner full body"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Goal" FontSize="12" Foreground="#6B7280" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="cmbGoal" Height="36" FontSize="14" VerticalContentAlignment="Center" SelectedIndex="0">
+                                <ComboBoxItem Content="Build strength"/>
+                                <ComboBoxItem Content="Lose weight"/>
+                                <ComboBoxItem Content="Endurance"/>
+                                <ComboBoxItem Content="General fitness"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="Level" FontSize="12" Foreground="#6B7280" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="cmbLevel" Height="36" FontSize="14" VerticalContentAlignment="Center" SelectedIndex="0">
+                                <ComboBoxItem Content="Beginner"/>
+                                <ComboBoxItem Content="Intermediate"/>
+                                <ComboBoxItem Content="Advanced"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Two columns -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.8*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- LEFT: days and the exercises of the selected day -->
+                <StackPanel Grid.Column="0">
+
+                    <!-- Day tabs -->
+                    <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <TextBlock Text="Program days" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Content="Remove day" Style="{StaticResource IconButton}" Width="Auto"
+                                            Foreground="#6B7280" Padding="8,0" Click="RemoveDay_Click"/>
+                                    <Button Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Height="30"
+                                            Click="AddDay_Click">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE710;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                                       VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                            <TextBlock Text="Add day" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <ListBox x:Name="lstDays" BorderThickness="0" Background="Transparent"
+                                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                     SelectionChanged="Days_SelectionChanged">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Margin" Value="0,0,8,0"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="Bd" Background="White" BorderBrush="#E5E7EB"
+                                                            BorderThickness="1.5" CornerRadius="10" Padding="18,8">
+                                                        <ContentPresenter/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                                                            <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Selected day: focus + exercise list -->
+                    <Border Background="White" CornerRadius="12" Padding="16"
+                            DataContext="{Binding SelectedItem, ElementName=lstDays}">
+                        <StackPanel>
+                            <TextBlock Text="Day focus" FontSize="12" Foreground="#6B7280" Margin="0,0,0,4"/>
+                            <TextBox Style="{StaticResource Field}" Margin="0,0,0,16"
+                                     Text="{Binding Focus, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <!-- Column headers (same widths as the rows) -->
+                            <Grid Margin="12,0,12,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="64"/>
+                                    <ColumnDefinition Width="64"/>
+                                    <ColumnDefinition Width="64"/>
+                                    <ColumnDefinition Width="40"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="EXERCISE" Style="{StaticResource CardTitle}" FontSize="11"/>
+                                <TextBlock Grid.Column="1" Text="SETS" Style="{StaticResource CardTitle}" FontSize="11" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="REPS" Style="{StaticResource CardTitle}" FontSize="11" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="REST" Style="{StaticResource CardTitle}" FontSize="11" HorizontalAlignment="Center"/>
+                            </Grid>
+                            <ItemsControl x:Name="lstExercises">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
+                                                CornerRadius="10" Padding="12,8" Margin="0,0,0,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="64"/>
+                                                    <ColumnDefinition Width="64"/>
+                                                    <ColumnDefinition Width="64"/>
+                                                    <ColumnDefinition Width="40"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                                    <TextBlock Text="{Binding Muscle}" FontSize="12" Foreground="#6B7280"/>
+                                                </StackPanel>
+
+                                                <TextBox Grid.Column="1" Style="{StaticResource Field}" Margin="3,0" Padding="4,6"
+                                                         HorizontalContentAlignment="Center" Text="{Binding Sets}"/>
+                                                <TextBox Grid.Column="2" Style="{StaticResource Field}" Margin="3,0" Padding="4,6"
+                                                         HorizontalContentAlignment="Center" Text="{Binding Reps}"/>
+                                                <TextBox Grid.Column="3" Style="{StaticResource Field}" Margin="3,0" Padding="4,6"
+                                                         HorizontalContentAlignment="Center" Text="{Binding Rest}"/>
+
+                                                <Button Grid.Column="4" Style="{StaticResource IconButton}"
+                                                        Tag="{Binding}" Click="RemoveExercise_Click">
+                                                    <TextBlock Text="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="15"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock x:Name="txtEmpty" TextWrapping="Wrap" FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,16" Visibility="Collapsed"
+                                       Text= "Rest day. Pick an exercise from the library to make it a training day."/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- RIGHT: summary + library -->
+                <StackPanel Grid.Column="2">
+
+                    <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Program summary" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="txtDaysCount" Text="0" FontSize="32" FontWeight="SemiBold" Foreground="#111827"/>
+                                    <TextBlock Text="days" FontSize="13" Foreground="#6B7280"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="txtExercisesCount" Text="0" FontSize="32" FontWeight="SemiBold" Foreground="#111827"/>
+                                    <TextBlock Text="exercises" FontSize="13" Foreground="#6B7280"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Exercise library" Style="{StaticResource CardTitle}" Margin="0,0,0,10"/>
+                            <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="lstLibrary">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource LibraryButton}" Tag="{Binding}"
+                                                Click="AddFromLibrary_Click" HorizontalContentAlignment="Stretch">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                                    <TextBlock Text="{Binding Muscle}" FontSize="12" Foreground="#6B7280"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Tip -->
+                    <Border Background="#EFF6FF" CornerRadius="12" Padding="14">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="16"
+                                       Foreground="#1D4ED8" Margin="0,1,10,0" VerticalAlignment="Top"/>
+                            <TextBlock Grid.Column="1" TextWrapping="Wrap" FontSize="13" Foreground="#1E3A8A"
+                                       Text="For timed exercises like a plank, write the time in the reps box, e.g. 30s."/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

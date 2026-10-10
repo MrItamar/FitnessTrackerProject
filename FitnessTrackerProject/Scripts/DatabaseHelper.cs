@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Data;
 using System.Data.OleDb;
-
 namespace FitnessTrackerProject.Scripts
 {
     public static class DatabaseHelper
@@ -30,7 +30,26 @@ namespace FitnessTrackerProject.Scripts
                 }
             }
         }
-
+        public static DataTable ExecuteQueryTable(string query, Action<OleDbParameterCollection> parameterAction = null)
+        {
+            using (OleDbConnection connection = GetConnection())
+            {
+                connection.Open();
+                using (OleDbCommand command = new OleDbCommand(query, connection))
+                {
+                    if (parameterAction != null)
+                    {
+                        parameterAction(command.Parameters);
+                    }
+                    using (OleDbDataAdapter adapter = new OleDbDataAdapter(command))
+                    {
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        return dt;
+                    }
+                }
+            }
+        }
         // Helper for commands that change data (INSERT, UPDATE, DELETE)
         public static int ExecuteNonQuery(string query, Action<OleDbParameterCollection> parameterAction = null)
         {

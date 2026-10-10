@@ -65,5 +65,6 @@ namespace FitnessTrackerProject.Scripts
         public List<Keypoint> Keypoints;
         public BoundingBox Box;      // the box that was used to find these keypoints
         public TrackState State;
+        public DistanceStatus Distance;
     }
 }

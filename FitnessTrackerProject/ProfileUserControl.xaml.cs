@@ -27,10 +27,12 @@ namespace FitnessTrackerProject
 
         private void LoadUserProfile()
         {
-            string query = @"SELECT Users.Username, Users.Age, Users.Gender, Users.ProfilePicPath, 
-                             Trainees.Height, Trainees.Weight, Trainees.FitnessGoal 
-                             FROM Users LEFT JOIN Trainees ON Users.ID = Trainees.UserID 
-                             WHERE Users.ID = ?";
+            string query = @"SELECT Users.Username, Users.Age, Users.Gender, Users.ProfilePicPath, Users.UserRole,
+                     Trainees.Height, Trainees.Weight, Trainees.FitnessGoal,
+                     Trainers.Specialty, Trainers.Bio
+                     FROM (Users LEFT JOIN Trainees ON Users.ID = Trainees.UserID)
+                     LEFT JOIN Trainers ON Users.ID = Trainers.UserID
+                     WHERE Users.ID = ?";
 
             using (OleDbConnection conn = DatabaseHelper.GetConnection())
             {
@@ -42,19 +44,34 @@ namespace FitnessTrackerProject
                     {
                         if (reader.Read())
                         {
+                            // Fields everyone has
                             txtUsername.Text = reader["Username"]?.ToString();
                             txtAge.Text = reader["Age"]?.ToString();
-                            txtHeight.Text = reader["Height"]?.ToString();
-                            txtWeight.Text = reader["Weight"]?.ToString();
-
-                            // Dropdowns: select the saved value (if it isn't in the list, it is added so nothing is lost)
                             SelectOrAdd(cmbGender, reader["Gender"]?.ToString());
-                            cmbFitnessGoal.Text = reader["FitnessGoal"]?.ToString();
 
                             string picPath = reader["ProfilePicPath"]?.ToString();
                             if (!string.IsNullOrEmpty(picPath) && File.Exists(picPath))
                             {
                                 imgProfile.Source = new BitmapImage(new Uri(picPath));
+                            }
+
+                            // Show only the fields of this user's role
+                            string role = reader["UserRole"]?.ToString().Trim();
+                            bool isCoach = string.Equals(role, "Coach", StringComparison.OrdinalIgnoreCase);
+
+                            panelCoach.Visibility = isCoach ? Visibility.Visible : Visibility.Collapsed;
+                            panelTrainee.Visibility = isCoach ? Visibility.Collapsed : Visibility.Visible;
+
+                            if (isCoach)
+                            {
+                                txtSpecialty.Text = reader["Specialty"]?.ToString();
+                                txtBio.Text = reader["Bio"]?.ToString();
+                            }
+                            else
+                            {
+                                txtHeight.Text = reader["Height"]?.ToString();
+                                txtWeight.Text = reader["Weight"]?.ToString();
+                                cmbFitnessGoal.Text = reader["FitnessGoal"]?.ToString();
                             }
                         }
                     }

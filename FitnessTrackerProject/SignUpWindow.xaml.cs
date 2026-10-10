@@ -6,6 +6,7 @@ using System.Data.OleDb;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 
 namespace FitnessTrackerProject
@@ -35,6 +36,18 @@ namespace FitnessTrackerProject
 
                 ProfileImage.Source = bitmap;
             }
+        }
+
+        /// <summary>Shows the trainee fields or the coach fields, depending on the chosen role.</summary>
+        private void RoleComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // The panels don't exist yet while the window is still being built
+            if (TraineePanel == null || CoachPanel == null) return;
+
+            string role = (RoleComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
+
+            CoachPanel.Visibility = role == "Coach" ? Visibility.Visible : Visibility.Collapsed;
+            TraineePanel.Visibility = role == "Trainee" ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private string HashPassword(string rawPassword)
@@ -95,7 +108,42 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            int newUserId = 0;
+            // Role-specific fields (checked before anything touches the database)
+            double height = 0, weight = 0;
+            string goal = "", specialty = "", bio = "";
+
+            if (role == "Coach")
+            {
+                specialty = SpecialtyTextBox.Text.Trim();
+                bio = BioTextBox.Text.Trim();
+
+                if (specialty == "")
+                {
+                    MessageBox.Show("Please enter your specialty.", "Missing Information", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+            else
+            {
+                goal = (GoalComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+
+                if (!double.TryParse(HeightTextBox.Text, out height) || height < 50 || height > 250)
+                {
+                    MessageBox.Show("Height must be a number between 50 and 250 (cm).", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                if (!double.TryParse(WeightTextBox.Text, out weight) || weight < 20 || weight > 400)
+                {
+                    MessageBox.Show("Weight must be a number between 20 and 400 (kg).", "Input Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                if (goal == "")
+                {
+                    MessageBox.Show("Please choose a goal.", "Missing Information", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
             try
             {
                 // Check if username exists using DatabaseHelper
@@ -113,38 +161,8 @@ namespace FitnessTrackerProject
 
                 string securedPassword = HashPassword(password);
 
-                // Insert into Users table using DatabaseHelper
-                DatabaseHelper.ExecuteNonQuery(
-                    "INSERT INTO Users (Username, Age, Gender, UserRole, ProfilePicPath, [Password]) VALUES (?, ?, ?, ?, ?, ?)",
-                    paramsCol => {
-                        paramsCol.AddWithValue("?", newUser.Username);
-                        paramsCol.AddWithValue("?", newUser.Age);
-                        paramsCol.AddWithValue("?", newUser.Gender);
-                        paramsCol.AddWithValue("?", newUser.GetUserRole());
-                        paramsCol.AddWithValue("?", newUser.ProfilePicPath ?? "");
-                        paramsCol.AddWithValue("?", securedPassword);
-                    }
-                );
-
-                // Get the generated user ID using DatabaseHelper
-                object idResult = DatabaseHelper.ExecuteScalar("SELECT @@IDENTITY");
-                newUserId = Convert.ToInt32(idResult);
-
-                // Insert matching row into Trainees or Trainers table
-                if (role == "Coach")
-                {
-                    DatabaseHelper.ExecuteNonQuery(
-                        "INSERT INTO Trainers (UserID, Specialty, Bio) VALUES (?, '', '')",
-                        paramsCol => paramsCol.AddWithValue("?", newUserId)
-                    );
-                }
-                else
-                {
-                    DatabaseHelper.ExecuteNonQuery(
-                        "INSERT INTO Trainees (UserID, Height, Weight, FitnessGoal) VALUES (?, 0, 0, '')",
-                        paramsCol => paramsCol.AddWithValue("?", newUserId)
-                    );
-                }
+                // Saves the user AND the trainee/coach row together (all or nothing)
+                int newUserId = SaveNewUser(newUser, securedPassword, role, height, weight, goal, specialty, bio);
 
                 MessageBox.Show($"{newUser.GetUserRole()} profile successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
@@ -155,6 +173,74 @@ namespace FitnessTrackerProject
             catch (Exception ex)
             {
                 MessageBox.Show($"Error saving to database: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Inserts the user and the matching Trainees/Trainers row on ONE connection, in ONE transaction.
+        /// Access only gives the new ID (@@IDENTITY) on the same connection as the insert,
+        /// and the transaction makes sure we never save a user without their trainee/coach row.
+        /// Returns the new user's ID.
+        /// </summary>
+        private int SaveNewUser(BaseUser user, string passwordHash, string role,
+                                double height, double weight, string goal, string specialty, string bio)
+        {
+            using (OleDbConnection connection = DatabaseHelper.GetConnection())
+            {
+                connection.Open();
+
+                using (OleDbTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        Run(connection, transaction,
+                            "INSERT INTO Users (Username, Age, Gender, UserRole, ProfilePicPath, [Password]) VALUES (?, ?, ?, ?, ?, ?)",
+                            user.Username, user.Age, user.Gender, user.GetUserRole(), user.ProfilePicPath ?? "", passwordHash);
+
+                        // The ID Access just created for this user
+                        int userId;
+                        using (var command = new OleDbCommand("SELECT @@IDENTITY", connection, transaction))
+                        {
+                            userId = Convert.ToInt32(command.ExecuteScalar());
+                        }
+
+                        if (userId == 0)
+                            throw new Exception("Could not get the new user ID.");
+
+                        if (role == "Coach")
+                        {
+                            Run(connection, transaction,
+                                "INSERT INTO Trainers (UserID, Specialty, Bio) VALUES (?, ?, ?)",
+                                userId, specialty, bio);
+                        }
+                        else
+                        {
+                            Run(connection, transaction,
+                                "INSERT INTO Trainees (UserID, Height, Weight, FitnessGoal) VALUES (?, ?, ?, ?)",
+                                userId, height, weight, goal);
+                        }
+
+                        transaction.Commit();   // everything worked: make it permanent
+                        return userId;
+                    }
+                    catch
+                    {
+                        transaction.Rollback(); // something failed: undo everything
+                        throw;                  // pass the error up so the screen can show it
+                    }
+                }
+            }
+        }
+
+        /// <summary>Runs one INSERT. Access fills the ? marks in ORDER, so the values must be in the same order.</summary>
+        private static void Run(OleDbConnection connection, OleDbTransaction transaction, string sql, params object[] values)
+        {
+            using (var command = new OleDbCommand(sql, connection, transaction))
+            {
+                foreach (object value in values)
+                    command.Parameters.AddWithValue("?", value);
+
+                command.ExecuteNonQuery();
             }
         }
 

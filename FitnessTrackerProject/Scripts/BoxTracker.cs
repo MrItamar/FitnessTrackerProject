@@ -18,7 +18,7 @@ namespace FitnessTrackerProject.Scripts
         private const float MinVisibility = 0.3f;
 
         // --- box shape and movement ---
-        private const float Padding = 1.25f;               // a bit of space around the body
+        private const float Padding = 1.1f;               // a bit of space around the body
         private const float MoveSmoothing = 0.2f;          // the box center moves 20% of the way each frame
         private const float GrowSmoothing = 0.5f;          // the box may GROW quickly...
         private const float ShrinkSmoothing = 0.05f;       // ...but shrinks slowly, so it can't collapse
@@ -106,8 +106,8 @@ namespace FitnessTrackerProject.Scripts
             centerY = 0;
             bodySize = 0;
 
-            float marginX = _frameWidth * 0.1f;
-            float marginY = _frameHeight * 0.1f;
+            float marginX = _frameWidth * 0.25f;
+            float marginY = _frameHeight * 0.25f;
 
             var visible = keypoints
                 .Take(Landmark.BodyCount)

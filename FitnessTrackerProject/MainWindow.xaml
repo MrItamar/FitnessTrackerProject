@@ -54,6 +54,8 @@
                     FontSize="14"/>
 
                     <Button Content="CoachStudio"
+                    x:Name="CoachStudioBtn"
+                    Visibility="Collapsed"
                     Click="SwitchScreen"
                     Tag="1"
                     Height="50"

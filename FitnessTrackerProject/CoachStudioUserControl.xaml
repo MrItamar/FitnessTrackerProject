@@ -1,0 +1,56 @@
+﻿<UserControl x:Class="FitnessTrackerProject.CoachStudioUserControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#F3F4F6">
+
+    <UserControl.Resources>
+        <!-- A RadioButton that looks like a tab: blue underline when selected -->
+        <Style x:Key="TabButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent"
+                                BorderThickness="0,0,0,2" Padding="14,8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#374151"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                                <Setter Property="Foreground" Value="#3B82F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Tab bar (left margin leaves room for the menu button) -->
+        <Border Grid.Row="0" Padding="72,16,24,0" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Background="White">
+            <StackPanel Orientation="Horizontal">
+                <RadioButton x:Name="tabPrograms" Content="My programs" GroupName="coachTabs"
+                             Style="{StaticResource TabButton}" Click="TabPrograms_Click"/>
+                <RadioButton x:Name="tabCreate" Content="Create program" GroupName="coachTabs"
+                             Style="{StaticResource TabButton}" Click="TabCreate_Click"/>
+            </StackPanel>
+        </Border>
+
+        <!-- The tab content is shown inside this frame -->
+        <Frame x:Name="coachFrame" Grid.Row="1"
+               NavigationUIVisibility="Hidden" JournalOwnership="OwnsJournal"/>
+    </Grid>
+</UserControl>

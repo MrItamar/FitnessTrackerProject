@@ -141,6 +141,7 @@
                         <TextBlock Text="My Profile" FontSize="26" FontWeight="Bold" Foreground="#111827"/>
                         <TextBlock Text="Update your personal details" FontSize="13" Foreground="#6B7280" Margin="0,2,0,22"/>
 
+                        <!-- Fields everyone has -->
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -148,8 +149,6 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
@@ -173,19 +172,32 @@
                                     <ComboBoxItem Content="Other"/>
                                 </ComboBox>
                             </StackPanel>
+                        </Grid>
+
+                        <!-- Trainee-only fields (LoadUserProfile shows this panel for trainees) -->
+                        <Grid x:Name="panelTrainee" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
                             <!-- Height | Weight -->
-                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,16">
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,16">
                                 <TextBlock Text="Height (cm)" Style="{StaticResource FieldLabel}"/>
                                 <TextBox x:Name="txtHeight" MaxLength="6" PreviewTextInput="Decimal_PreviewTextInput"/>
                             </StackPanel>
-                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,16">
+                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,16">
                                 <TextBlock Text="Weight (kg)" Style="{StaticResource FieldLabel}"/>
                                 <TextBox x:Name="txtWeight" MaxLength="6" PreviewTextInput="Decimal_PreviewTextInput"/>
                             </StackPanel>
 
                             <!-- Fitness goal (full width). Editable, so you can still type your own goal. -->
-                            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,24">
+                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,24">
                                 <TextBlock Text="Fitness Goal" Style="{StaticResource FieldLabel}"/>
                                 <ComboBox x:Name="cmbFitnessGoal" IsEditable="True">
                                     <ComboBoxItem Content="Lose Weight"/>
@@ -197,8 +209,23 @@
                             </StackPanel>
                         </Grid>
 
+                        <!-- Coach-only fields (LoadUserProfile shows this panel for coaches) -->
+                        <StackPanel x:Name="panelCoach" Visibility="Collapsed">
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="Specialty" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtSpecialty" MaxLength="100"/>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,0,24">
+                                <TextBlock Text="Bio" Style="{StaticResource FieldLabel}"/>
+                                <TextBox x:Name="txtBio" Height="90" MaxLength="250" Padding="8,6"
+                     VerticalContentAlignment="Top" AcceptsReturn="True" TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"/>
+                            </StackPanel>
+                        </StackPanel>
+
                         <Button Content="Save Changes" Style="{StaticResource PrimaryButton}"
-                                HorizontalAlignment="Right" Click="BtnSave_Click"/>
+            HorizontalAlignment="Right" Click="BtnSave_Click"/>
                     </StackPanel>
                 </Grid>
             </Border>

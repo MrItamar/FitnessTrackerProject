@@ -119,6 +119,18 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AllExercisesWindow.xaml.cs">
+      <DependentUpon>AllExercisesWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CoachProgramsUserControl.xaml.cs">
+      <DependentUpon>CoachProgramsUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CoachStudioUserControl.xaml.cs">
+      <DependentUpon>CoachStudioUserControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="CreateProgramUserControl.xaml.cs">
+      <DependentUpon>CreateProgramUserControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ProfileUserControl.xaml.cs">
       <DependentUpon>ProfileUserControl.xaml</DependentUpon>
     </Compile>
@@ -130,17 +142,39 @@
     <Compile Include="Models\Coach.cs" />
     <Compile Include="Models\Trainee.cs" />
     <Compile Include="Scripts\DatabaseHelper.cs" />
+    <Compile Include="Scripts\DistanceChecker.cs" />
+    <Compile Include="Scripts\ExercisePool.cs" />
     <Compile Include="Scripts\KeyPoints.cs" />
     <Compile Include="Scripts\PlankChecker.cs" />
     <Compile Include="Scripts\PoseDrawer.cs" />
     <Compile Include="Scripts\PoseEstimator.cs" />
+    <Compile Include="Scripts\ProgramRepository.cs" />
+    <Compile Include="Scripts\PullUpCounter.cs" />
+    <Compile Include="Scripts\PushUpCounter.cs" />
     <Compile Include="Scripts\SquatCounter.cs" />
+    <Compile Include="Scripts\WorkoutResult.cs" />
     <Compile Include="SignUpWindow.xaml.cs">
       <DependentUpon>SignUpWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="WorkoutHubUserControl.xaml.cs">
       <DependentUpon>WorkoutHubUserControl.xaml</DependentUpon>
     </Compile>
+    <Page Include="AllExercisesWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CoachProgramsUserControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CoachStudioUserControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CreateProgramUserControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="LoginWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

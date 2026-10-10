@@ -1,5 +1,4 @@
-﻿using FitnessTrackerProject.Scripts;
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace FitnessTrackerProject.Scripts
@@ -23,7 +22,9 @@ namespace FitnessTrackerProject.Scripts
         private const double MaxBodyAngleDegrees = 30;   // more tilted than this = not a plank
         private const float HipTolerance = 0.08f;        // hip may be 8% of body length above/below the line
 
-        public int HoldFrames { get; private set; }
+        public int HoldFrames { get; private set; }       // frames with good form
+        public int HipsLowFrames { get; private set; }    // frames in a plank with the hips too low
+        public int HipsHighFrames { get; private set; }   // frames in a plank with the hips too high
         public PlankStatus Status { get; private set; }
 
         public bool IsGoodForm
@@ -31,11 +32,14 @@ namespace FitnessTrackerProject.Scripts
             get { return Status == PlankStatus.Good; }
         }
 
-        /// <summary>Call once per frame during playback.</summary>
+        /// <summary>Call once per frame.</summary>
         public void Update(List<Keypoint> keypoints)
         {
             Status = CheckForm(keypoints);
+
             if (Status == PlankStatus.Good) HoldFrames++;
+            else if (Status == PlankStatus.HipsTooLow) HipsLowFrames++;
+            else if (Status == PlankStatus.HipsTooHigh) HipsHighFrames++;
         }
 
         public int HoldSeconds(double fps)
