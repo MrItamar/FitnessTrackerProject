@@ -41,7 +41,7 @@ namespace FitnessTrackerProject
             currentUserId = userId;
             IsCoach = CheckIsCoach();
             if (IsCoach) CoachStudioBtn.Visibility = Visibility.Visible;
-
+            else ExploreBtn.Visibility = Visibility.Visible;
             MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
             LoadModel();
         }
@@ -419,6 +419,9 @@ namespace FitnessTrackerProject
                 case 2:
                     // Profile
                     MainFrame.Navigate(new ProfileUserControl(currentUserId));
+                    break;
+                case 3:
+                    MainFrame.Navigate(new ExploreUserControl(currentUserId));
                     break;
             }
         }

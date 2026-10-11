@@ -131,6 +131,9 @@
     <Compile Include="CreateProgramUserControl.xaml.cs">
       <DependentUpon>CreateProgramUserControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ExploreUserControl.xaml.cs">
+      <DependentUpon>ExploreUserControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ProfileUserControl.xaml.cs">
       <DependentUpon>ProfileUserControl.xaml</DependentUpon>
     </Compile>
@@ -152,6 +155,7 @@
     <Compile Include="Scripts\PullUpCounter.cs" />
     <Compile Include="Scripts\PushUpCounter.cs" />
     <Compile Include="Scripts\SquatCounter.cs" />
+    <Compile Include="Scripts\TraineeRepository.cs" />
     <Compile Include="Scripts\WorkoutResult.cs" />
     <Compile Include="SignUpWindow.xaml.cs">
       <DependentUpon>SignUpWindow.xaml</DependentUpon>
@@ -172,6 +176,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CreateProgramUserControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="ExploreUserControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

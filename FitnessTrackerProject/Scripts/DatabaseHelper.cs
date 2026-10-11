@@ -6,7 +6,7 @@ namespace FitnessTrackerProject.Scripts
     public static class DatabaseHelper
     {
         // Saved in ONE single spot (using your exact database path and name)
-        public static readonly string ConnectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=../../DataBase\FitnessTrackerDB1.accdb;";
+        public static readonly string ConnectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=../../../DataBase\FitnessTrackerDB1.accdb;";
 
         // Open and return a new connection easily
         public static OleDbConnection GetConnection()

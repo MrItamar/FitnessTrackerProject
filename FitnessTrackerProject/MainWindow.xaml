@@ -66,7 +66,12 @@
                     Foreground="Black"
                     BorderThickness="0"
                     FontSize="14"/>
-
+                    
+                    <Button Content="Explore" x:Name="ExploreBtn" Visibility="Collapsed"
+        Click="SwitchScreen" Tag="3" Height="50" Margin="0,0,0,8"
+        HorizontalContentAlignment="Left" Padding="18,0"
+        Background="Transparent" Foreground="Black" BorderThickness="0" FontSize="14"/>
+                    
                     <Button Content="Profile"
                     Click="SwitchScreen"
                     Tag="2"
