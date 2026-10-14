@@ -95,12 +95,38 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
+        <!-- A small program tile (with the trainer's picture) -->
+        <DataTemplate x:Key="ProgramTile">
+            <Border Width="215" Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
+                    CornerRadius="10" Padding="10" Margin="0,0,8,8" Cursor="Hand"
+                    Tag="{Binding Id}" MouseLeftButtonUp="ProgramTile_Click">
+                <StackPanel Orientation="Horizontal">
+                    <Grid Width="40" Height="40" Margin="0,0,10,0" VerticalAlignment="Top">
+                        <Ellipse Fill="#DBEAFE"/>
+                        <TextBlock Text="{Binding Initial}" FontSize="16" FontWeight="Bold" Foreground="#1D4ED8"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Ellipse>
+                            <Ellipse.Fill>
+                                <ImageBrush ImageSource="{Binding Picture}" Stretch="UniformToFill"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                    </Grid>
+                    <StackPanel Width="140" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="#111827"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#3B82F6"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Stats}" FontSize="11" Foreground="#9CA3AF"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <Grid Margin="24,16,24,24" MaxWidth="760" HorizontalAlignment="Center">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -111,9 +137,49 @@
                 <TextBlock Text="WorkoutHub" FontSize="22" FontWeight="SemiBold" Foreground="#111827"/>
                 <TextBlock Text="Pick an exercise, add a video, get your count" FontSize="13" Foreground="#6B7280"/>
             </StackPanel>
+            <!-- My programs (only visible for trainees) -->
+            <Border x:Name="cardPrograms" Grid.Row="1" Background="White" CornerRadius="12" Padding="16"
+                    Margin="0,0,0,12" Visibility="Collapsed">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Text="My programs" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                        <Button Content="Explore  &#x203A;" Style="{StaticResource LinkButton}"
+                                HorizontalAlignment="Right" Click="BrowsePrograms_Click"/>
+                    </Grid>
 
+                    <!-- Row 1: programs from the dedicated trainer -->
+                    <StackPanel x:Name="panelTrainerPrograms" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="From your trainer" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="#111827" Margin="0,0,0,8"/>
+                        <ItemsControl x:Name="lstTrainerPrograms" ItemTemplate="{StaticResource ProgramTile}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <TextBlock x:Name="txtNoTrainerPrograms" Text="Your trainer hasn't created any programs yet."
+                                   FontSize="12" Foreground="#6B7280" Visibility="Collapsed"/>
+                    </StackPanel>
+
+                    <!-- Row 2: programs the trainee added -->
+                    <StackPanel>
+                        <TextBlock Text="Other programs" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="#111827" Margin="0,0,0,8"/>
+                        <ItemsControl x:Name="lstOtherPrograms" ItemTemplate="{StaticResource ProgramTile}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <TextBlock x:Name="txtNoOtherPrograms" Text="You haven't added any other programs yet."
+                                   FontSize="12" Foreground="#6B7280" Visibility="Collapsed"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
             <!-- Two columns -->
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="1.5*"/>
                     <ColumnDefinition Width="12"/>
@@ -236,7 +302,7 @@
             </Grid>
 
             <!-- Recent workouts (empty for now) -->
-            <Border Grid.Row="2" Background="White" CornerRadius="12" Padding="16" Margin="0,12,0,0">
+            <Border Grid.Row="3" Background="White" CornerRadius="12" Padding="16" Margin="0,12,0,0">
                 <StackPanel>
                     <TextBlock Text="Recent workouts" Style="{StaticResource CardTitle}" Margin="0,0,0,6"/>
                     <TextBlock x:Name="txtNoHistory" Text="No workouts yet. Pick an exercise and add a video."

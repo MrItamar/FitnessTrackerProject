@@ -40,11 +40,6 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                    <Setter Property="Background" Value="#16A34A"/>
-                </DataTrigger>
-            </Style.Triggers>
         </Style>
 
         <!-- Small text-only button ("Remove") -->
@@ -94,8 +89,18 @@
                     </StackPanel>
 
                     <Button Grid.Column="2" Content="{Binding ButtonText}" Tag="{Binding Id}"
-                            Click="ChooseTrainer_Click" Style="{StaticResource ChooseButton}"
-                            VerticalAlignment="Center" Margin="14,0,0,0"/>
+                            Click="ChooseTrainer_Click"
+                            VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ChooseButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="Background" Value="#16A34A"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </Grid>
             </Border>
         </DataTemplate>
@@ -134,8 +139,18 @@
                     </StackPanel>
 
                     <Button Grid.Column="2" Content="{Binding ButtonText}" Tag="{Binding Id}"
-                            Click="ChooseProgram_Click" Style="{StaticResource ChooseButton}"
-                            VerticalAlignment="Center" Margin="14,0,0,0"/>
+                            Click="ChooseProgram_Click"
+                            VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource ChooseButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="Background" Value="#6B7280"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
                 </Grid>
             </Border>
         </DataTemplate>
@@ -179,11 +194,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="txtCurrentProgram" FontSize="14" Foreground="#111827"
-                                   VerticalAlignment="Center"/>
-                        <Button x:Name="btnClearProgram" Grid.Column="1" Content="Remove"
-                                Style="{StaticResource LinkButton}" Foreground="#DC2626"
-                                Click="ClearProgram_Click" Visibility="Collapsed"/>
+                        <TextBlock x:Name="txtCurrentProgram" FontSize="14" Foreground="#111827"/>
                     </Grid>
 
                     <Border Background="#EFF6FF" CornerRadius="10" Padding="12" Margin="0,14,0,0">

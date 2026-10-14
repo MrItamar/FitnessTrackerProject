@@ -1,5 +1,6 @@
 ﻿using FitnessTrackerProject.Scripts;
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -21,12 +22,11 @@ namespace FitnessTrackerProject
         {
             try
             {
-                int? trainerId;
-                int? programId;
-                TraineeRepository.GetSelection(_traineeId, out trainerId, out programId);
+                int? trainerId = TraineeRepository.GetTrainerId(_traineeId);
+                HashSet<int> programIds = TraineeRepository.GetProgramIds(_traineeId);
 
-                var trainers = TraineeRepository.GetTrainers(trainerId);
-                var programs = TraineeRepository.GetPrograms(programId);
+                List<TrainerItem> trainers = TraineeRepository.GetTrainers(trainerId);
+                List<ProgramChoiceItem> programs = TraineeRepository.GetPrograms(programIds);
 
                 lstTrainers.ItemsSource = trainers;
                 lstPrograms.ItemsSource = programs;
@@ -37,14 +37,10 @@ namespace FitnessTrackerProject
                 if (programs.Count == 0) txtNoPrograms.Visibility = Visibility.Visible;
                 else txtNoPrograms.Visibility = Visibility.Collapsed;
 
-                // The box at the top: start with "nothing chosen"...
+                // The "Your choices" box
                 txtCurrentTrainer.Text = "Your trainer: none chosen yet";
                 btnClearTrainer.Visibility = Visibility.Collapsed;
 
-                txtCurrentProgram.Text = "Your program: none chosen yet";
-                btnClearProgram.Visibility = Visibility.Collapsed;
-
-                // ...then fill in the chosen trainer and program, if there are any
                 foreach (TrainerItem trainer in trainers)
                 {
                     if (trainer.IsSelected)
@@ -54,14 +50,14 @@ namespace FitnessTrackerProject
                     }
                 }
 
+                int added = 0;
                 foreach (ProgramChoiceItem program in programs)
                 {
-                    if (program.IsSelected)
-                    {
-                        txtCurrentProgram.Text = "Your program: " + program.Name + " (by " + program.CoachName + ")";
-                        btnClearProgram.Visibility = Visibility.Visible;
-                    }
+                    if (program.IsSelected) added++;
                 }
+
+                if (added == 0) txtCurrentProgram.Text = "Your programs: none added yet";
+                else txtCurrentProgram.Text = "Your programs: " + added + " added";
             }
             catch (Exception ex)
             {
@@ -86,23 +82,6 @@ namespace FitnessTrackerProject
             LoadLists();
         }
 
-        private void ChooseProgram_Click(object sender, RoutedEventArgs e)
-        {
-            Button button = (Button)sender;
-            int programId = Convert.ToInt32(button.Tag);
-
-            try
-            {
-                TraineeRepository.SetProgram(_traineeId, programId);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Could not save your choice: " + ex.Message);
-            }
-
-            LoadLists();
-        }
-
         private void ClearTrainer_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -117,15 +96,20 @@ namespace FitnessTrackerProject
             LoadLists();
         }
 
-        private void ClearProgram_Click(object sender, RoutedEventArgs e)
+        // One button does both: adds the program, or removes it if it was already added
+        private void ChooseProgram_Click(object sender, RoutedEventArgs e)
         {
+            Button button = (Button)sender;
+            ProgramChoiceItem program = (ProgramChoiceItem)button.DataContext;
+
             try
             {
-                TraineeRepository.SetProgram(_traineeId, null);
+                if (program.IsSelected) TraineeRepository.RemoveProgram(_traineeId, program.Id);
+                else TraineeRepository.AddProgram(_traineeId, program.Id);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not remove your program: " + ex.Message);
+                MessageBox.Show("Could not save your choice: " + ex.Message);
             }
 
             LoadLists();

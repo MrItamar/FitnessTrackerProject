@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Navigation;
 
 namespace FitnessTrackerProject
 {
@@ -38,8 +39,91 @@ namespace FitnessTrackerProject
             currentUserId = userId;
             ExercisePool.Initialize();
             LoadCatalogFromPool();
+            LoadMyPrograms();
+        }
+        // Opens the hub with an exercise already selected
+        public WorkoutHubUserControl(int userId, string startExercise) : this(userId)
+        {
+            if (!string.IsNullOrEmpty(startExercise))
+            {
+                SelectExercise(startExercise);
+            }
         }
 
+        // ================================================================
+        // My programs
+        // ================================================================
+
+        private void LoadMyPrograms()
+        {
+            try
+            {
+                // Coaches don't follow programs, so the card stays hidden for them
+                if (!TraineeRepository.IsTrainee(currentUserId)) return;
+
+                cardPrograms.Visibility = Visibility.Visible;
+
+                int? trainerId = TraineeRepository.GetTrainerId(currentUserId);
+
+                // Row 1: all programs of the dedicated trainer (only if the trainee has one)
+                if (trainerId.HasValue)
+                {
+                    List<ProgramChoiceItem> fromTrainer = TraineeRepository.GetProgramsByCoach(trainerId.Value);
+                    lstTrainerPrograms.ItemsSource = fromTrainer;
+                    panelTrainerPrograms.Visibility = Visibility.Visible;
+
+                    if (fromTrainer.Count == 0) txtNoTrainerPrograms.Visibility = Visibility.Visible;
+                    else txtNoTrainerPrograms.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    panelTrainerPrograms.Visibility = Visibility.Collapsed;
+                }
+
+                // Row 2: programs the trainee added (skipping the trainer's ones, they are in row 1)
+                List<ProgramChoiceItem> chosen = TraineeRepository.GetChosenPrograms(currentUserId);
+                List<ProgramChoiceItem> others = new List<ProgramChoiceItem>();
+
+                foreach (ProgramChoiceItem program in chosen)
+                {
+                    if (!trainerId.HasValue || program.CoachId != trainerId.Value)
+                    {
+                        others.Add(program);
+                    }
+                }
+
+                lstOtherPrograms.ItemsSource = others;
+
+                if (others.Count == 0) txtNoOtherPrograms.Visibility = Visibility.Visible;
+                else txtNoOtherPrograms.Visibility = Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not load your programs: " + ex.Message);
+            }
+        }
+
+        // Tapping a program opens its page inside the same frame
+        private void ProgramTile_Click(object sender, MouseButtonEventArgs e)
+        {
+            Border tile = (Border)sender;
+            int programId = Convert.ToInt32(tile.Tag);
+
+            NavigationService navigation = NavigationService.GetNavigationService(this);
+            if (navigation != null)
+            {
+                navigation.Navigate(new ProgramDetailUserControl(currentUserId, programId));
+            }
+        }
+
+        private void BrowsePrograms_Click(object sender, RoutedEventArgs e)
+        {
+            NavigationService navigation = NavigationService.GetNavigationService(this);
+            if (navigation != null)
+            {
+                navigation.Navigate(new ExploreUserControl(currentUserId));
+            }
+        }
         // ================================================================
         // Load exercises from the pool
         // ================================================================

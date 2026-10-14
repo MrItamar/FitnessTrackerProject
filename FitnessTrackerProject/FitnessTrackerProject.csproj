@@ -137,6 +137,9 @@
     <Compile Include="ProfileUserControl.xaml.cs">
       <DependentUpon>ProfileUserControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ProgramDetailUserControl.xaml.cs">
+      <DependentUpon>ProgramDetailUserControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Scripts\BoxTracker.cs" />
     <Compile Include="LoginWindow.xaml.cs">
       <DependentUpon>LoginWindow.xaml</DependentUpon>
@@ -200,6 +203,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="ProfileUserControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="ProgramDetailUserControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
