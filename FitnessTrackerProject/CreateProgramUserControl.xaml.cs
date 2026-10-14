@@ -1,7 +1,9 @@
 ﻿using FitnessTrackerProject.Scripts;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -35,10 +37,13 @@ namespace FitnessTrackerProject
         public CreateProgramUserControl() { }
         private int _coachId;
         public event EventHandler ProgramSaved;
-        public CreateProgramUserControl(int coachId)
+        private CoachStudioUserControl _parentStudio;
+        private int? _editingProgramId = null;
+        public CreateProgramUserControl(int coachId, CoachStudioUserControl parentStudio)
         {
             InitializeComponent();
             _coachId = coachId;
+            _parentStudio = parentStudio;
             LoadLibrary();
             lstDays.ItemsSource = _days;
             AddDay_Click(null, null);
@@ -184,26 +189,98 @@ namespace FitnessTrackerProject
                 MessageBox.Show("Every exercise needs sets, reps and rest (up to 20 characters each).");
                 return;
             }
-
-            string goal = ((ComboBoxItem)cmbGoal.SelectedItem).Content.ToString();
-            string level = ((ComboBoxItem)cmbLevel.SelectedItem).Content.ToString();
-
+            string goal = ((ComboBoxItem)cmbGoal.SelectedItem)?.Content?.ToString() ?? "";
+            string level = ((ComboBoxItem)cmbLevel.SelectedItem)?.Content?.ToString() ?? "";
             try
             {
-                ProgramRepository.SaveProgram(_coachId, name, goal, level, _days);
-                MessageBox.Show("Program saved!", "Coach Studio");
+                if (_editingProgramId.HasValue)
+                {
+                    ProgramRepository.UpdateProgram(_editingProgramId.Value, _coachId, name, goal, level, _days);
+                    MessageBox.Show("Program updated successfully!", "Coach Studio");
+                }
+                else
+                {
+                    ProgramRepository.SaveProgram(_coachId, name, goal, level, _days);
+                    MessageBox.Show("Program saved!", "Coach Studio");
+                }
+
                 ResetScreen();
-                ProgramSaved?.Invoke(this, EventArgs.Empty);
+                if(_parentStudio!=null)
+                    _parentStudio.OpenProgramsTab(); // Direct method call to switch tab!
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Could not save the program: " + ex.Message, "Coach Studio");
             }
         }
+        public void LoadProgramForEdit(int programId)
+        {
+            _editingProgramId = programId;
 
+            // 1. Load Program info
+            DataTable dtProg = DatabaseHelper.ExecuteQueryTable(
+                "SELECT ProgramName, Goal, ProgramLevel FROM ProgramsTable WHERE ProgramID = ?",
+                p => p.AddWithValue("?", programId));
+
+            if (dtProg.Rows.Count == 0) return;
+
+            txtProgramName.Text = dtProg.Rows[0]["ProgramName"].ToString();
+            string goal = dtProg.Rows[0]["Goal"]?.ToString();
+            string level = dtProg.Rows[0]["ProgramLevel"]?.ToString();
+
+            foreach (ComboBoxItem item in cmbGoal.Items)
+                if (item.Content.ToString() == goal) cmbGoal.SelectedItem = item;
+
+            foreach (ComboBoxItem item in cmbLevel.Items)
+                if (item.Content.ToString() == level) cmbLevel.SelectedItem = item;
+
+            // 2. Load Days & Exercises
+            _days.Clear();
+
+            DataTable dtDays = DatabaseHelper.ExecuteQueryTable(
+                "SELECT DayID, DayNumber, DayFocus FROM ProgramDaysTable WHERE ProgramID = ? ORDER BY DayNumber",
+                p => p.AddWithValue("?", programId));
+
+            foreach (DataRow dayRow in dtDays.Rows)
+            {
+                int dayId = Convert.ToInt32(dayRow["DayID"]);
+                CoachDay day = new CoachDay
+                {
+                    Title = "Day " + dayRow["DayNumber"],
+                    Focus = dayRow["DayFocus"]?.ToString() ?? ""
+                };
+
+                DataTable dtEx = DatabaseHelper.ExecuteQueryTable(
+                    "SELECT e.ExerciseID, x.ExerciseName, x.TargetMuscle, e.Sets, e.Reps, e.RestTime " +
+                    "FROM ProgramExercisesTable AS e " +
+                    "INNER JOIN ExercisesTable AS x ON e.ExerciseID = x.ExerciseID " +
+                    "WHERE e.DayID = ? ORDER BY e.SortOrder",
+                    p => p.AddWithValue("?", dayId));
+
+                foreach (DataRow exRow in dtEx.Rows)
+                {
+                    day.Exercises.Add(new CoachExercise
+                    {
+                        ExerciseId = Convert.ToInt32(exRow["ExerciseID"]),
+                        Name = exRow["ExerciseName"].ToString(),
+                        Muscle = exRow["TargetMuscle"].ToString(),
+                        Sets = exRow["Sets"].ToString(),
+                        Reps = exRow["Reps"].ToString(),
+                        Rest = exRow["RestTime"].ToString()
+                    });
+                }
+
+                _days.Add(day);
+            }
+
+            lstDays.Items.Refresh();
+            if (_days.Count > 0) lstDays.SelectedIndex = 0;
+            RefreshSummary();
+        }
         /// <summary>Empty screen, ready for the next program (so pressing Save twice doesn't create a copy).</summary>
         private void ResetScreen()
         {
+            _editingProgramId = null;
             txtProgramName.Text = "";
             _days.Clear();
             lstDays.Items.Refresh();

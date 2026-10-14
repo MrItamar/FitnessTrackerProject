@@ -179,6 +179,12 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                <Button Content="Edit program" Style="{StaticResource PrimaryButton}" Height="32" Padding="14,0"
+            Margin="0,0,8,0" Click="EditProgram_Click"/>
+                                <Button Content="Delete program" Style="{StaticResource DangerButton}"
+            Click="DeleteProgram_Click"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>

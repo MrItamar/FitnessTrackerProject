@@ -76,5 +76,28 @@ namespace FitnessTrackerProject
                 navigation.Navigate(new WorkoutHubUserControl(_userId, exerciseName));
             }
         }
+        private void StartDay_Click(object sender, RoutedEventArgs e)
+        {
+            Button btn = (Button)sender;
+            ProgramDayItem day = btn.Tag as ProgramDayItem;
+            if (day == null || day.Exercises == null || day.Exercises.Count == 0)
+            {
+                MessageBox.Show("This day has no exercises.", "Workout");
+                return;
+            }
+
+            // Collect all exercise names in this day
+            List<string> exerciseList = new List<string>();
+            foreach (var ex in day.Exercises)
+            {
+                exerciseList.Add(ex.Name);
+            }
+
+            NavigationService navigation = NavigationService.GetNavigationService(this);
+            if (navigation != null)
+            {
+                navigation.Navigate(new WorkoutHubUserControl(_userId, exerciseList));
+            }
+        }
     }
 }

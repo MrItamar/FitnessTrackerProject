@@ -35,13 +35,22 @@ namespace FitnessTrackerProject
         private readonly int _coachId;
 
         public event EventHandler CreateRequested;   // the host switches to the "Create program" tab
+        private CoachStudioUserControl _parentStudio;
 
-        public CoachProgramsUserControl() : this(0) { }
+        public CoachProgramsUserControl() { }
 
-        public CoachProgramsUserControl(int coachId)
+        public CoachProgramsUserControl(int coachId, CoachStudioUserControl parentStudio)
         {
             InitializeComponent();
             _coachId = coachId;
+            _parentStudio = parentStudio;
+        }
+        private void EditProgram_Click(object sender, RoutedEventArgs e)
+        {
+            var program = lstPrograms.SelectedItem as ProgramItem;
+            if (program == null) return;
+
+            _parentStudio.OpenEditTab(program.Id); // Direct call!
         }
         /// <summary>Reads this coach's programs from the database and shows them.</summary>
         public void Reload()

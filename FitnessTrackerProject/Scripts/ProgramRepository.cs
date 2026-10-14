@@ -58,7 +58,66 @@ namespace FitnessTrackerProject.Scripts
                 }
             }
         }
+        public static void UpdateProgram(int programId, int coachId, string name, string goal, string level, List<CoachDay> days)
+        {
+            // 1. Update program details
+            DatabaseHelper.ExecuteNonQuery(
+                "UPDATE ProgramsTable SET ProgramName = ?, Goal = ?, ProgramLevel = ? WHERE ProgramID = ? AND CoachID = ?",
+                p =>
+                {
+                    p.AddWithValue("?", name);
+                    p.AddWithValue("?", goal);
+                    p.AddWithValue("?", level);
+                    p.AddWithValue("?", programId);
+                    p.AddWithValue("?", coachId);
+                });
 
+            // 2. Remove old exercises and days
+            DatabaseHelper.ExecuteNonQuery(
+                "DELETE FROM ProgramExercisesTable WHERE DayID IN (SELECT DayID FROM ProgramDaysTable WHERE ProgramID = ?)",
+                p => p.AddWithValue("?", programId));
+
+            DatabaseHelper.ExecuteNonQuery(
+                "DELETE FROM ProgramDaysTable WHERE ProgramID = ?",
+                p => p.AddWithValue("?", programId));
+
+            // 3. Insert the updated days and exercises
+            for (int d = 0; d < days.Count; d++)
+            {
+                CoachDay day = days[d];
+                string focus = string.IsNullOrWhiteSpace(day.Focus) ? "" : day.Focus.Trim();
+
+                DatabaseHelper.ExecuteNonQuery(
+                    "INSERT INTO ProgramDaysTable (ProgramID, DayNumber, DayFocus) VALUES (?, ?, ?)",
+                    p =>
+                    {
+                        p.AddWithValue("?", programId);
+                        p.AddWithValue("?", d + 1);
+                        p.AddWithValue("?", focus);
+                    });
+
+                // Get the ID of the day we just added
+                int dayId = Convert.ToInt32(DatabaseHelper.ExecuteScalar(
+                    "SELECT MAX(DayID) FROM ProgramDaysTable WHERE ProgramID = ?",
+                    p => p.AddWithValue("?", programId)));
+
+                for (int e = 0; e < day.Exercises.Count; e++)
+                {
+                    CoachExercise ex = day.Exercises[e];
+                    DatabaseHelper.ExecuteNonQuery(
+                        "INSERT INTO ProgramExercisesTable (DayID, ExerciseID, SortOrder, Sets, Reps, RestTime) VALUES (?, ?, ?, ?, ?, ?)",
+                        p =>
+                        {
+                            p.AddWithValue("?", dayId);
+                            p.AddWithValue("?", ex.ExerciseId);
+                            p.AddWithValue("?", e + 1);
+                            p.AddWithValue("?", ex.Sets.Trim());
+                            p.AddWithValue("?", ex.Reps.Trim());
+                            p.AddWithValue("?", ex.Rest.Trim());
+                        });
+                }
+            }
+        }
         /// <summary>Runs an INSERT and returns the AutoNumber ID that Access just created.</summary>
         private static int InsertAndGetId(OleDbConnection connection, OleDbTransaction transaction,
                                           string sql, params object[] values)

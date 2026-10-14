@@ -82,13 +82,11 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // Plank and push-ups are horizontal exercises: the image is rotated before the AI sees it
+            bool isHorizontal = exercise != null && exercise.IsHorizontal;
 
-            bool isHorizontal = exercise.IsHorizontal;
-
-            // PASS 1: run the AI on every frame and remember the results (ESC cancels)
+            // PASS 1: Analyze the video (ESC cancels)
             List<FrameResult> frames = AnalyzeVideo(video, isHorizontal);
-            if (frames == null) return;   // cancelled or could not open the video
+            if (frames == null) return;
 
             if (frames.Count == 0)
             {
@@ -96,7 +94,15 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // Calibrate on this person's own movement
+            // Auto-detect which exercise was performed in the video
+            string detectedName = ExerciseDetector.Detect(frames);
+            ExerciseModel detectedExercise = ExercisePool.GetByName(detectedName);
+            if (detectedExercise != null)
+            {
+                exercise = detectedExercise;
+            }
+
+            // Calibrate on this person's movement
             var squats = new SquatCounter();
             var plank = new PlankChecker();
             var pushUps = new PushUpCounter();
@@ -104,42 +110,15 @@ namespace FitnessTrackerProject
 
             if (exercise.Name == "Squat") squats.Calibrate(frames);
             if (exercise.Name == "Pushup") pushUps.Calibrate(frames);
+            if (exercise.Name == "Pullup") pullUps.Calibrate(frames);
 
+            // PASS 2: Play video and show the rep count going up on screen
             if (ShowPlayback && video != null)
-                PlayBack(video, frames, exercise, squats, plank, pushUps,pullUps);
+                PlayBack(video, frames, exercise, squats, plank, pushUps, pullUps);
             else
                 ShowSummary(frames, exercise, squats, plank, pushUps, pullUps);
         }
 
-        /// <summary>No playback: let the counter do its work on the saved frames and show the result.</summary>
-        private void ShowSummary(List<FrameResult> frames, ExerciseModel exercise,
-                                 SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
-        {
-            foreach (FrameResult result in frames)
-            {
-                if (result.State == TrackState.Lost || result.Distance == DistanceStatus.TooClose) continue;   // don't count frames we can't trust
-                switch (exercise.Name)
-                {
-                    case "Plank": plank.Update(result.Keypoints); break;
-                    case "Pushup": pushUps.Update(result.Keypoints); break;
-                    case "Pullup": pullUps.Update(result.Keypoints); break;
-                    default: squats.Update(result.Keypoints); break;
-                }
-            }
-
-            string message;
-            switch (exercise.Name)
-            {
-                case "Plank": message = $"Plank hold time: {plank.HoldSeconds(_videoFps)} seconds"; break;
-                case "Pushup": message = $"Push-ups counted: {pushUps.Count}"; break;
-                case "Pullup": message = $"Pull-ups counted: {pullUps.Count}"; break;
-                default: message = $"Squats counted: {squats.Count}"; break;
-            }
-
-            MessageBox.Show(message, "Result", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        /// <summary>Pass 2: show the video with the skeleton and the exercise info.</summary>
         private void PlayBack(string video, List<FrameResult> frames, ExerciseModel exercise,
                               SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
         {
@@ -170,7 +149,6 @@ namespace FitnessTrackerProject
 
                         if (result.State == TrackState.Lost)
                         {
-                            // The tracker doesn't trust this frame, so we don't count anything on it.
                             PoseDrawer.PutText(frame, "Tracking lost...", 50, 1.2, Scalar.Red, 3);
                         }
                         else if (exercise.Name == "Plank")
@@ -202,44 +180,31 @@ namespace FitnessTrackerProject
             }
             Cv2.DestroyAllWindows();
         }
+
         private void ShowSquats(Mat frame, List<Keypoint> keypoints, SquatCounter squats)
         {
             squats.Update(keypoints);
 
-            string ratioText = squats.LastRatio.HasValue
-                ? $"Dynamic Ratio: {Math.Round(squats.LastRatio.Value, 2)}"
-                : "Legs not visible";
-
-            PoseDrawer.PutText(frame, $"Squats: {squats.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, ratioText, 100, 1, Scalar.LimeGreen, 2);
-            PoseDrawer.PutText(frame, $"State: {squats.State}", 140, 1, Scalar.Cyan, 2);
+            PoseDrawer.PutText(frame, $"Squat - {squats.Count}", 50, 1.5, Scalar.Yellow, 3);
+            PoseDrawer.PutText(frame, $"State: {squats.State}", 100, 1, Scalar.Cyan, 2);
         }
 
         private void ShowPushUps(Mat frame, List<Keypoint> keypoints, PushUpCounter pushUps)
         {
             pushUps.Update(keypoints);
 
-            string angleText = pushUps.LastAngle.HasValue
-                ? $"Elbow angle: {Math.Round(pushUps.LastAngle.Value)}"
-                : "Get into push-up position";
-
-            PoseDrawer.PutText(frame, $"Push-ups: {pushUps.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, angleText, 100, 1, Scalar.LimeGreen, 2);
-            PoseDrawer.PutText(frame, $"State: {pushUps.State}", 140, 1, Scalar.Cyan, 2);
+            PoseDrawer.PutText(frame, $"Pushup - {pushUps.Count}", 50, 1.5, Scalar.Yellow, 3);
+            PoseDrawer.PutText(frame, $"State: {pushUps.State}", 100, 1, Scalar.Cyan, 2);
         }
 
         private void ShowPullUps(Mat frame, List<Keypoint> keypoints, PullUpCounter pullUps)
         {
             pullUps.Update(keypoints);
 
-            string angleText = pullUps.LastAngle.HasValue
-                ? $"Elbow angle: {Math.Round(pullUps.LastAngle.Value)}"
-                : "Get into push-up position";
-
-            PoseDrawer.PutText(frame, $"Push-ups: {pullUps.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, angleText, 100, 1, Scalar.LimeGreen, 2);
-            PoseDrawer.PutText(frame, $"State: {pullUps.State}", 140, 1, Scalar.Cyan, 2);
+            PoseDrawer.PutText(frame, $"Pullup - {pullUps.Count}", 50, 1.5, Scalar.Yellow, 3);
+            PoseDrawer.PutText(frame, $"State: {pullUps.State}", 100, 1, Scalar.Cyan, 2);
         }
+
         private void ShowPlank(Mat frame, List<Keypoint> keypoints, PlankChecker plank, double fps)
         {
             plank.Update(keypoints);
@@ -255,15 +220,10 @@ namespace FitnessTrackerProject
 
             Scalar color = plank.IsGoodForm ? Scalar.LimeGreen : Scalar.Red;
 
-            PoseDrawer.PutText(frame, $"Plank Time: {plank.HoldSeconds(fps)}s", 50, 1.5, Scalar.Yellow, 3);
+            PoseDrawer.PutText(frame, $"Plank - {plank.HoldSeconds(fps)}s", 50, 1.5, Scalar.Yellow, 3);
             PoseDrawer.PutText(frame, message, 100, 1, color, 2);
         }
 
-        /// <summary>Turns the counters into one result (not used yet, ready for when you save workouts).</summary>
-        /// <summary>
-        /// Pass 1: runs the AI on every frame and remembers the results.
-        /// video = path to a file, or null to use the live camera (ESC = finish).
-        /// </summary>
         private List<FrameResult> AnalyzeVideo(string video, bool isPlankMode)
         {
             var results = new List<FrameResult>();
@@ -280,10 +240,7 @@ namespace FitnessTrackerProject
                     return null;
                 }
 
-                // A camera has no real frame count, so 0 = "unknown" (the preview handles that)
                 int totalFrames = isLive ? 0 : capture.FrameCount;
-
-                // A file knows its own fps. A camera doesn't, so it is measured after the loop.
                 if (!isLive) _videoFps = capture.Fps > 1 ? capture.Fps : 30.0;
 
                 BoxTracker tracker = null;
@@ -301,34 +258,44 @@ namespace FitnessTrackerProject
                     {
                         frameNumber++;
 
-                        // Mirror the camera image, like looking in a mirror
                         if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
 
-                        // The tracker needs the frame size, so we create it on the first frame.
                         if (tracker == null) tracker = new BoxTracker(frame.Cols, frame.Rows);
 
-                        BoundingBox boxUsed = tracker.Box;
+                        // Keep FullFrame while probing the first 8 frames or when horizontal
+                        bool useFullFrame = _estimator.IsProbing || _estimator.IsHorizontal;
+                        BoundingBox boxUsed = useFullFrame
+                            ? BoundingBox.FullFrame(frame.Cols, frame.Rows)
+                            : tracker.Box;
 
                         List<Keypoint> keypoints = _estimator.Estimate(frame, boxUsed);
 
-                        // If the tracker gave up and starts searching again, old keypoints must not influence the smoothing.
                         if (tracker.ReacquiredThisFrame) _estimator.ResetSmoothing();
 
-                        // Distance check on EVERY frame (it needs consecutive frames to measure jitter)
                         DistanceStatus distance = DistanceChecker.Update(keypoints, _estimator.Confidence, frame.Rows);
 
-                        if (isPlankMode)
+                        if (useFullFrame)
                         {
-                            results.Add(new FrameResult { Keypoints = keypoints, Box = BoundingBox.FullFrame(frame.Cols, frame.Rows), State = TrackState.Tracking, Distance = distance });
+                            results.Add(new FrameResult
+                            {
+                                Keypoints = keypoints,
+                                Box = BoundingBox.FullFrame(frame.Cols, frame.Rows),
+                                State = TrackState.Tracking,
+                                Distance = distance
+                            });
                         }
                         else
                         {
                             TrackState state = tracker.Update(keypoints, _estimator.Confidence);
-                            results.Add(new FrameResult { Keypoints = keypoints, Box = boxUsed, State = state, Distance = distance });
+                            results.Add(new FrameResult
+                            {
+                                Keypoints = keypoints,
+                                Box = boxUsed,
+                                State = state,
+                                Distance = distance
+                            });
                         }
 
-                        // Live preview (every 2nd frame is enough).
-                        // ESC on a file = cancel everything. ESC on the camera = "I'm done", keep what was recorded.
                         if (frameNumber % 2 == 0 && !ShowAnalysisPreview(frame, keypoints, distance, frameNumber, totalFrames))
                         {
                             if (!isLive) cancelled = true;
@@ -336,7 +303,6 @@ namespace FitnessTrackerProject
                         }
                     }
 
-                    // Camera: fps = frames processed / seconds passed (used by the plank timer)
                     if (isLive && frameNumber > 0)
                         _videoFps = frameNumber / Math.Max(0.001, clock.Elapsed.TotalSeconds);
                 }
@@ -344,6 +310,32 @@ namespace FitnessTrackerProject
 
             Cv2.DestroyWindow(AnalysisWindowName);
             return cancelled ? null : results;
+        }
+        private void ShowSummary(List<FrameResult> frames, ExerciseModel exercise,
+                         SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
+        {
+            foreach (FrameResult result in frames)
+            {
+                if (result.State == TrackState.Lost || result.Distance == DistanceStatus.TooClose) continue;   // don't count frames we can't trust
+                switch (exercise.Name)
+                {
+                    case "Plank": plank.Update(result.Keypoints); break;
+                    case "Pushup": pushUps.Update(result.Keypoints); break;
+                    case "Pullup": pullUps.Update(result.Keypoints); break;
+                    default: squats.Update(result.Keypoints); break;
+                }
+            }
+
+            string message;
+            switch (exercise.Name)
+            {
+                case "Plank": message = $"Plank hold time: {plank.HoldSeconds(_videoFps)} seconds"; break;
+                case "Pushup": message = $"Push-ups counted: {pushUps.Count}"; break;
+                case "Pullup": message = $"Pull-ups counted: {pullUps.Count}"; break;
+                default: message = $"Squats counted: {squats.Count}"; break;
+            }
+
+            MessageBox.Show(message, "Result", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private bool ShowAnalysisPreview(Mat frame, List<Keypoint> keypoints, DistanceStatus status,

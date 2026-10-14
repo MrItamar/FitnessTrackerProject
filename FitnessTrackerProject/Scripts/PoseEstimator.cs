@@ -16,7 +16,7 @@ namespace FitnessTrackerProject.Scripts
     public class PoseEstimator
     {
         private const int InputSize = 256;               // the model wants 256x256 images
-        private const int RotationProbeFrames = 8;       // plank mode: frames used to choose the rotation
+        private const int RotationProbeFrames = 8;       // first 8 frames choose the rotation
 
         // --- smoothing ---
         private const float LowConfidence = 0.3f;        // below this visibility we keep the old position
@@ -27,13 +27,12 @@ namespace FitnessTrackerProject.Scripts
 
         private enum Rotation { None, Ccw, Cw }
 
-        // What one model run gives back (private: only used inside this class)
         private class RawPose
         {
             public List<Keypoint> Keypoints;
             public int CropSide;        // size of the square that was cropped (frame pixels)
             public float Confidence;    // the model's own "a person is here" score, -1 if it has none
-            public float Score;         // confidence if we have it, otherwise average visibility
+            public float Score;         // upright visibility score used to pick rotation
         }
 
         private readonly InferenceSession _session;
@@ -43,13 +42,15 @@ namespace FitnessTrackerProject.Scripts
         private Rotation _rotation = Rotation.None;
         private bool _probing;
         private int _probeFrames;
-        private double _scoreCcw, _scoreCw;
+        private double _scoreNone, _scoreCcw, _scoreCw;
 
-        /// <summary>
-        /// The model's "person present" score (0..1) for the LAST frame, or -1 if the model doesn't give one.
-        /// The BoxTracker uses it to ignore bad frames.
-        /// </summary>
         public float Confidence { get; private set; } = -1f;
+
+        /// <summary>True during the first 8 frames while choosing rotation.</summary>
+        public bool IsProbing { get { return _probing; } }
+
+        /// <summary>True if the chosen rotation is horizontal (Ccw or Cw).</summary>
+        public bool IsHorizontal { get { return _rotation != Rotation.None; } }
 
         public PoseEstimator(string modelPath)
         {
@@ -57,16 +58,16 @@ namespace FitnessTrackerProject.Scripts
         }
 
         /// <summary>Call before every new video.</summary>
-        public void StartVideo(bool plankMode)
+        public void StartVideo(bool plankMode = false)
         {
             _previous = null;
             _probeFrames = 0;
+            _scoreNone = 0;
             _scoreCcw = 0;
             _scoreCw = 0;
 
-            // In plank mode the person is horizontal, so we rotate the image before the model.
-            // We don't know which way, so the first frames try both and keep the better one.
-            _probing = plankMode;
+            // Probe the first 8 frames on the full frame to auto-detect upright vs horizontal
+            _probing = true;
             _rotation = plankMode ? Rotation.Ccw : Rotation.None;
         }
 
@@ -83,19 +84,30 @@ namespace FitnessTrackerProject.Scripts
 
             if (_probing)
             {
+                RawPose none = Run(frame, box, Rotation.None);
                 RawPose ccw = Run(frame, box, Rotation.Ccw);
                 RawPose cw = Run(frame, box, Rotation.Cw);
 
+                if (none != null) _scoreNone += none.Score;
                 if (ccw != null) _scoreCcw += ccw.Score;
                 if (cw != null) _scoreCw += cw.Score;
 
-                pose = (ccw != null && (cw == null || ccw.Score >= cw.Score)) ? ccw : cw;
+                pose = none;
+                if (ccw != null && (pose == null || ccw.Score > pose.Score)) pose = ccw;
+                if (cw != null && (pose == null || cw.Score > pose.Score)) pose = cw;
 
                 _probeFrames++;
                 if (_probeFrames >= RotationProbeFrames)
                 {
-                    _rotation = _scoreCcw >= _scoreCw ? Rotation.Ccw : Rotation.Cw;
+                    if (_scoreNone >= _scoreCcw && _scoreNone >= _scoreCw)
+                        _rotation = Rotation.None;
+                    else if (_scoreCcw >= _scoreCw)
+                        _rotation = Rotation.Ccw;
+                    else
+                        _rotation = Rotation.Cw;
+
                     _probing = false;
+                    _previous = null; // start smoothing fresh once rotation is locked
                 }
             }
             else
@@ -105,7 +117,6 @@ namespace FitnessTrackerProject.Scripts
 
             if (pose == null)
             {
-                // Box was completely outside the frame: repeat the last result.
                 Confidence = -1f;
                 return _previous != null ? new List<Keypoint>(_previous) : new List<Keypoint>();
             }
@@ -124,11 +135,6 @@ namespace FitnessTrackerProject.Scripts
             }
         }
 
-        /// <summary>
-        /// Cuts a SQUARE out of the frame (centered on the box), pads any part outside the frame with black,
-        /// and ONLY THEN resizes to 256x256. Square first = the person is never stretched.
-        /// cropX/cropY/side remember exactly which square we used, so we can map the result back.
-        /// </summary>
         private Mat PrepareInput(Mat frame, BoundingBox box, Rotation rotation,
                                  out int cropX, out int cropY, out int side)
         {
@@ -136,7 +142,6 @@ namespace FitnessTrackerProject.Scripts
             cropX = (int)Math.Round(box.X + box.Width / 2f - side / 2f);
             cropY = (int)Math.Round(box.Y + box.Height / 2f - side / 2f);
 
-            // The part of the square that really is inside the frame
             int left = Math.Max(0, cropX);
             int top = Math.Max(0, cropY);
             int right = Math.Min(frame.Cols, cropX + side);
@@ -149,16 +154,15 @@ namespace FitnessTrackerProject.Scripts
             using (var resized = new Mat())
             using (var rgb = new Mat())
             {
-                // Black padding so the result is exactly side x side
                 Cv2.CopyMakeBorder(inside, square,
-                    top - cropY,               // top
-                    (cropY + side) - bottom,   // bottom
-                    left - cropX,              // left
-                    (cropX + side) - right,    // right
+                    top - cropY,
+                    (cropY + side) - bottom,
+                    left - cropX,
+                    (cropX + side) - right,
                     BorderTypes.Constant, Scalar.Black);
 
                 Cv2.Resize(square, resized, new Size(InputSize, InputSize));
-                Cv2.CvtColor(resized, rgb, ColorConversionCodes.BGR2RGB);   // OpenCV is BGR, model wants RGB
+                Cv2.CvtColor(resized, rgb, ColorConversionCodes.BGR2RGB);
 
                 var result = new Mat();
                 switch (rotation)
@@ -171,10 +175,8 @@ namespace FitnessTrackerProject.Scripts
             }
         }
 
-        /// <summary>Runs the ONNX model and converts its output to keypoints in FRAME pixels.</summary>
         private RawPose RunModel(Mat input, int cropX, int cropY, int side, Rotation rotation)
         {
-            // Turn the image into numbers 0..1 and copy them into the input array
             using (var floatImage = new Mat())
             {
                 input.ConvertTo(floatImage, MatType.CV_32FC3, 1.0 / 255.0);
@@ -191,17 +193,29 @@ namespace FitnessTrackerProject.Scripts
                 float[] values = results.First(r => r.Name == outputName).AsTensor<float>().ToArray();
                 float confidence = FindConfidence(results, outputName);
 
-                // The model returns 5 numbers per point: x, y, z, visibility, presence
+                // Check if the body is upright in this rotation's 256x256 input (shoulders above hips)
+                bool isUprightInModel = false;
+                if (values.Length > Landmark.RightHip * 5 + 1)
+                {
+                    float rawShoulderX = (values[Landmark.LeftShoulder * 5] + values[Landmark.RightShoulder * 5]) * 0.5f;
+                    float rawShoulderY = (values[Landmark.LeftShoulder * 5 + 1] + values[Landmark.RightShoulder * 5 + 1]) * 0.5f;
+                    float rawHipX = (values[Landmark.LeftHip * 5] + values[Landmark.RightHip * 5]) * 0.5f;
+                    float rawHipY = (values[Landmark.LeftHip * 5 + 1] + values[Landmark.RightHip * 5 + 1]) * 0.5f;
+
+                    float rawDx = Math.Abs(rawHipX - rawShoulderX);
+                    float rawDy = rawHipY - rawShoulderY; // positive when shoulders are above hips
+                    isUprightInModel = rawDy > rawDx && rawDy > 15f;
+                }
+
                 var keypoints = new List<Keypoint>();
-                float scale = side / (float)InputSize;   // 256-space -> square-crop pixels
+                float scale = side / (float)InputSize;
 
                 for (int i = 0; i + 4 < values.Length; i += 5)
                 {
                     float x = values[i];
                     float y = values[i + 1];
-                    float visibility = 1f / (1f + (float)Math.Exp(-values[i + 3]));   // sigmoid
+                    float visibility = 1f / (1f + (float)Math.Exp(-values[i + 3]));
 
-                    // Undo the rotation we applied to the image
                     if (rotation == Rotation.Ccw)
                     {
                         float newX = InputSize - y;
@@ -219,29 +233,22 @@ namespace FitnessTrackerProject.Scripts
 
                     if (float.IsNaN(x) || float.IsNaN(y) || float.IsInfinity(x) || float.IsInfinity(y))
                     {
-                        x = 0; y = 0; visibility = 0;   // treated as "not visible"
+                        x = 0; y = 0; visibility = 0;
                     }
 
-                    // square-crop pixels -> frame pixels (one origin + one scale, so errors can't pile up)
                     keypoints.Add(new Keypoint(cropX + x * scale, cropY + y * scale, visibility));
                 }
 
-                // Score is used to pick the rotation: model confidence, or average visibility if it has none
-                float score = confidence;
-                if (score < 0f)
-                {
-                    int n = Math.Min(keypoints.Count, Landmark.BodyCount);
-                    score = n > 0 ? keypoints.Take(n).Average(k => k.Visibility) : 0f;
-                }
+                int n = Math.Min(keypoints.Count, Landmark.BodyCount);
+                float avgVis = n > 0 ? keypoints.Take(n).Average(k => k.Visibility) : 0f;
+
+                // Only the rotation where the person is upright in the model gets full score
+                float score = isUprightInModel ? avgVis : avgVis * 0.1f;
 
                 return new RawPose { Keypoints = keypoints, CropSide = side, Confidence = confidence, Score = score };
             }
         }
 
-        /// <summary>
-        /// The MediaPipe pose model has a second output with exactly ONE number: "is there a person?".
-        /// We find it by its size (1 value) instead of relying on the output order.
-        /// </summary>
         private static float FindConfidence(IEnumerable<DisposableNamedOnnxValue> results, string landmarkOutputName)
         {
             foreach (var output in results)
@@ -259,17 +266,11 @@ namespace FitnessTrackerProject.Scripts
                 }
                 catch
                 {
-                    // not a float output, ignore
                 }
             }
             return -1f;
         }
 
-        /// <summary>
-        /// Blends each point with its position in the last frame so the skeleton doesn't shake.
-        /// - Unsure point (visibility &lt; 0.3): NOT blended, keeps the exact old position.
-        /// - Still joint: smoothed a lot. Fast joint: follows quickly (so there is little lag).
-        /// </summary>
         private List<Keypoint> Smooth(List<Keypoint> current, int cropSide)
         {
             if (_previous == null || _previous.Count != current.Count)
@@ -294,10 +295,10 @@ namespace FitnessTrackerProject.Scripts
 
                 float dx = now.X - before.X;
                 float dy = now.Y - before.Y;
-                float speed = (float)Math.Sqrt(dx * dx + dy * dy) / side;   // how far it moved, relative to crop size
+                float speed = (float)Math.Sqrt(dx * dx + dy * dy) / side;
 
                 float alpha = Math.Min(MaxSmoothing, StillSmoothing + SpeedGain * speed);
-                if (now.Visibility <= 0.5f) alpha *= 0.5f;                   // shaky points: trust them less
+                if (now.Visibility <= 0.5f) alpha *= 0.5f;
 
                 smoothed.Add(new Keypoint(
                     before.X + alpha * dx,

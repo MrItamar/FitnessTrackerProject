@@ -149,6 +149,7 @@
     <Compile Include="Models\Trainee.cs" />
     <Compile Include="Scripts\DatabaseHelper.cs" />
     <Compile Include="Scripts\DistanceChecker.cs" />
+    <Compile Include="Scripts\ExerciseDetector.cs" />
     <Compile Include="Scripts\ExercisePool.cs" />
     <Compile Include="Scripts\KeyPoints.cs" />
     <Compile Include="Scripts\PlankChecker.cs" />

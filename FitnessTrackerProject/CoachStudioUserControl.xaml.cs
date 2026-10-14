@@ -6,7 +6,6 @@ namespace FitnessTrackerProject
     /// <summary>Coach Studio: a tab bar and a frame that shows "My programs" or "Create program".</summary>
     public partial class CoachStudioUserControl : UserControl
     {
-        // Each screen is created once, so a half-built program isn't lost when switching tabs
         private readonly CoachProgramsUserControl _programs;
         private readonly CreateProgramUserControl _create;
 
@@ -16,29 +15,31 @@ namespace FitnessTrackerProject
         {
             InitializeComponent();
 
-            _programs = new CoachProgramsUserControl(coachId);
-            _create = new CreateProgramUserControl(coachId);
+            _programs = new CoachProgramsUserControl(coachId, this);
+            _create = new CreateProgramUserControl(coachId, this);
 
-            _programs.CreateRequested += (s, e) => ShowCreate();   // button shown when the list is empty
-            _create.ProgramSaved += (s, e) => ShowPrograms();      // after saving, go to the list
-
-            ShowPrograms();
+            OpenProgramsTab();
         }
 
-        private void ShowPrograms()
+        public void OpenProgramsTab()
         {
             tabPrograms.IsChecked = true;
-            _programs.Reload();                    // read the database again, so a new program appears
+            _programs.Reload();
             if (coachFrame.Content != _programs) coachFrame.Navigate(_programs);
         }
 
-        private void ShowCreate()
+        public void OpenEditTab(int programId)
+        {
+            tabCreate.IsChecked = true;
+            _create.LoadProgramForEdit(programId);
+            if (coachFrame.Content != _create) coachFrame.Navigate(_create);
+        }
+
+        private void TabPrograms_Click(object sender, RoutedEventArgs e) { OpenProgramsTab(); }
+        private void TabCreate_Click(object sender, RoutedEventArgs e)
         {
             tabCreate.IsChecked = true;
             if (coachFrame.Content != _create) coachFrame.Navigate(_create);
         }
-
-        private void TabPrograms_Click(object sender, RoutedEventArgs e) { ShowPrograms(); }
-        private void TabCreate_Click(object sender, RoutedEventArgs e) { ShowCreate(); }
     }
 }

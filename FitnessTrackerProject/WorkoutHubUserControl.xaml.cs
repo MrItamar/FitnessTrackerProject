@@ -18,7 +18,8 @@ namespace FitnessTrackerProject
         private string _selectedExercise;
         private string _cardAExercise;
         private string _cardBExercise;
-
+        private List<string> _dayExercises = new List<string>();
+        private int _currentDayIndex = 0;
         public ExerciseModel SelectedExerciseType
         {
             get
@@ -26,11 +27,17 @@ namespace FitnessTrackerProject
                 return ExercisePool.GetByName(_selectedExercise);
             }
         }
-        public WorkoutHubUserControl()
+        public WorkoutHubUserControl(int userId, List<string> dayExercises) : this(userId)
         {
-            InitializeComponent();
-            ExercisePool.Initialize();
-            LoadCatalogFromPool();
+            if (dayExercises != null && dayExercises.Count > 0)
+            {
+                _dayExercises = dayExercises;
+                _currentDayIndex = 0;
+
+                btnNextExercise.Visibility = Visibility.Visible;
+                SelectExercise(_dayExercises[0]);
+                txtHint.Text = $"Day Routine (1 of {_dayExercises.Count}): {_dayExercises[0]}";
+            }
         }
 
         public WorkoutHubUserControl(int userId)
@@ -49,7 +56,28 @@ namespace FitnessTrackerProject
                 SelectExercise(startExercise);
             }
         }
+        private void NextExercise_Click(object sender, RoutedEventArgs e)
+        {
+            _currentDayIndex++;
 
+            if (_currentDayIndex < _dayExercises.Count)
+            {
+                string nextExercise = _dayExercises[_currentDayIndex];
+                SelectExercise(nextExercise);
+                txtHint.Text = $"Day Routine ({_currentDayIndex + 1} of {_dayExercises.Count}): {nextExercise}";
+
+                if (_currentDayIndex == _dayExercises.Count - 1)
+                {
+                    btnNextExercise.Content = "Finish Routine";
+                }
+            }
+            else
+            {
+                MessageBox.Show("Routine complete! Great workout today.", "Done", MessageBoxButton.OK, MessageBoxImage.Information);
+                btnNextExercise.Visibility = Visibility.Collapsed;
+                _dayExercises.Clear();
+            }
+        }
         // ================================================================
         // My programs
         // ================================================================

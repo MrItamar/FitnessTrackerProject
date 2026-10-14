@@ -236,7 +236,7 @@
                     <!-- 2. Add your video -->
                     <Border Background="White" CornerRadius="12" Padding="16">
                         <StackPanel>
-                            
+
                             <TextBlock Text="2. Add your video" Style="{StaticResource CardTitle}" Margin="0,0,0,10"/>
                             <TextBlock x:Name="txtHint" FontSize="12" Foreground="#6B7280"
                                                HorizontalAlignment="Center" Margin="0,0,0,12"/>
@@ -253,6 +253,8 @@
                                 </StackPanel>
                                 
                             </Grid>
+                            <Button x:Name="btnNextExercise" Content="Next Exercise" Style="{StaticResource PrimaryButton}"
+        Margin="0,10,0,0" Visibility="Collapsed" Click="NextExercise_Click"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
