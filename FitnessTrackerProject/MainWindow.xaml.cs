@@ -94,31 +94,113 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // Auto-detect which exercise was performed in the video
-            string detectedName = ExerciseDetector.Detect(frames);
-            ExerciseModel detectedExercise = ExercisePool.GetByName(detectedName);
-            if (detectedExercise != null)
+            // What does the video look like?
+            double score;
+            IExerciseCounter detected = ExerciseRegistry.Detect(frames, out score);
+            Debug.WriteLine("Exercise scores: " + ExerciseRegistry.LastScores);
+
+            // What was picked (or planned in the program)?
+            IExerciseCounter counter = null;
+            if (exercise != null)
             {
-                exercise = detectedExercise;
+                counter = ExerciseRegistry.Create(exercise.Name);
+
+                if (counter == null)
+                {
+                    MessageBox.Show(exercise.Name + " can't be counted yet.");
+                    return;
+                }
+
+                if (detected != null && detected.Name != counter.Name)
+                {
+                    MessageBoxResult answer = MessageBox.Show(
+                        "You picked " + counter.Name + ", but this video looks like " + detected.Name + "." +
+                        "\n\nCount it as " + detected.Name + "?  (No = count it as " + counter.Name + ")",
+                        "Exercise check", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                    if (answer == MessageBoxResult.Yes) counter = detected;
+                }
+            }
+            else
+            {
+                counter = detected;   // nothing was picked: trust the detector
             }
 
-            // Calibrate on this person's movement
-            var squats = new SquatCounter();
-            var plank = new PlankChecker();
-            var pushUps = new PushUpCounter();
-            var pullUps = new PullUpCounter();
+            if (counter == null)
+            {
+                MessageBox.Show("Could not tell which exercise this is.");
+                return;
+            }
 
-            if (exercise.Name == "Squat") squats.Calibrate(frames);
-            if (exercise.Name == "Pushup") pushUps.Calibrate(frames);
-            if (exercise.Name == "Pullup") pullUps.Calibrate(frames);
+            counter.Calibrate(frames);
 
-            // PASS 2: Play video and show the rep count going up on screen
             if (ShowPlayback && video != null)
-                PlayBack(video, frames, exercise, squats, plank, pushUps, pullUps);
+                PlayBack(video, frames, counter);
             else
-                ShowSummary(frames, exercise, squats, plank, pushUps, pullUps);
+                ShowSummary(frames, counter);
         }
 
+        private void ShowSummary(List<FrameResult> frames, IExerciseCounter counter)
+        {
+            foreach (FrameResult result in frames)
+            {
+                if (result.State == TrackState.Lost || result.Distance == DistanceStatus.TooClose) continue;   // don't count frames we can't trust
+                counter.Update(result.Keypoints);
+            }
+
+            MessageBox.Show(counter.ResultText(_videoFps), "Result", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void PlayBack(string video, List<FrameResult> frames, IExerciseCounter counter)
+        {
+            using (var capture = new VideoCapture(video))
+            {
+                if (!capture.IsOpened()) return;
+
+                double fps = capture.Fps > 1 ? capture.Fps : 30.0;
+                int delay = Math.Max(1, (int)(1000.0 / fps));
+
+                Cv2.NamedWindow(PlaybackWindowName, WindowFlags.Normal);
+                Cv2.ResizeWindow(PlaybackWindowName, 960, 540);
+
+                using (var frame = new Mat())
+                {
+                    int frameIndex = 0;
+                    while (capture.Read(frame) && !frame.Empty() && frameIndex < frames.Count)
+                    {
+                        FrameResult result = frames[frameIndex];
+
+                        PoseDrawer.DrawSkeleton(frame, result.Keypoints);
+
+                        if (ShowTrackingBox && result.State != TrackState.Searching)
+                        {
+                            Scalar boxColor = result.State == TrackState.Tracking ? Scalar.Cyan : Scalar.Red;
+                            PoseDrawer.DrawBox(frame, result.Box, boxColor);
+                        }
+
+                        if (result.State == TrackState.Lost)
+                        {
+                            PoseDrawer.PutText(frame, "Tracking lost...", 50, 1.2, Scalar.Red, 3);
+                        }
+                        else
+                        {
+                            counter.Update(result.Keypoints);
+                            PoseDrawer.PutText(frame, counter.OverlayText(fps), 50, 1.5, Scalar.Yellow, 3);
+                            PoseDrawer.PutText(frame, counter.StatusText, 100, 1, Scalar.Cyan, 2);
+                        }
+
+                        using (Mat display = PoseDrawer.ResizeForDisplay(frame, 960, 540))
+                        {
+                            Cv2.ImShow(PlaybackWindowName, display);
+                        }
+
+                        if (Cv2.WaitKey(delay) == 27) break;   // ESC = stop
+                        frameIndex++;
+                    }
+                }
+            }
+            Cv2.DestroyAllWindows();
+        }
         private void PlayBack(string video, List<FrameResult> frames, ExerciseModel exercise,
                               SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
         {
@@ -311,32 +393,7 @@ namespace FitnessTrackerProject
             Cv2.DestroyWindow(AnalysisWindowName);
             return cancelled ? null : results;
         }
-        private void ShowSummary(List<FrameResult> frames, ExerciseModel exercise,
-                         SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
-        {
-            foreach (FrameResult result in frames)
-            {
-                if (result.State == TrackState.Lost || result.Distance == DistanceStatus.TooClose) continue;   // don't count frames we can't trust
-                switch (exercise.Name)
-                {
-                    case "Plank": plank.Update(result.Keypoints); break;
-                    case "Pushup": pushUps.Update(result.Keypoints); break;
-                    case "Pullup": pullUps.Update(result.Keypoints); break;
-                    default: squats.Update(result.Keypoints); break;
-                }
-            }
 
-            string message;
-            switch (exercise.Name)
-            {
-                case "Plank": message = $"Plank hold time: {plank.HoldSeconds(_videoFps)} seconds"; break;
-                case "Pushup": message = $"Push-ups counted: {pushUps.Count}"; break;
-                case "Pullup": message = $"Pull-ups counted: {pullUps.Count}"; break;
-                default: message = $"Squats counted: {squats.Count}"; break;
-            }
-
-            MessageBox.Show(message, "Result", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
 
         private bool ShowAnalysisPreview(Mat frame, List<Keypoint> keypoints, DistanceStatus status,
                                          int frameNumber, int totalFrames)

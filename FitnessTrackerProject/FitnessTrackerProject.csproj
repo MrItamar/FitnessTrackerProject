@@ -149,10 +149,12 @@
     <Compile Include="Models\Trainee.cs" />
     <Compile Include="Scripts\DatabaseHelper.cs" />
     <Compile Include="Scripts\DistanceChecker.cs" />
-    <Compile Include="Scripts\ExerciseDetector.cs" />
+    <Compile Include="Scripts\ExerciseRegistry.cs" />
     <Compile Include="Scripts\ExercisePool.cs" />
+    <Compile Include="Scripts\IExerciseCounter.cs" />
     <Compile Include="Scripts\KeyPoints.cs" />
     <Compile Include="Scripts\PlankChecker.cs" />
+    <Compile Include="Scripts\PoseChecks.cs" />
     <Compile Include="Scripts\PoseDrawer.cs" />
     <Compile Include="Scripts\PoseEstimator.cs" />
     <Compile Include="Scripts\ProgramRepository.cs" />

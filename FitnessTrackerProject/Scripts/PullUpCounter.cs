@@ -9,19 +9,30 @@ namespace FitnessTrackerProject.Scripts
     /// Top of the pull-up (chin to bar) = small angle (about 70-90).
     /// A rep is counted when the person pulls UP to the top and lowers back down to a hang.
     /// </summary>
-    public class PullUpCounter
+    public class PullUpCounter : IExerciseCounter
     {
         private const float MinVisibility = 0.2f;
-        private const double MaxTorsoDeviationDegrees = 30; // torso must be roughly vertical (hanging)
-        private const double AngleSmoothing = 0.7;          // smooths the angle so it doesn't jitter
-        private const double MinUsefulRange = 40;           // minimum range of motion to calibrate
-
-        private double _hangThreshold = 150;                // default angle for arms straight (hanging)
-        private double _pullThreshold = 100;                // default angle for arms bent (top of pull-up)
+        private const double MaxTorsoDeviationDegrees = 30;
+        private const double AngleSmoothing = 0.7;
+        private const double MinUsefulRange = 40; 
+        private double _hangThreshold = 150; 
+        private double _pullThreshold = 100;
         private double? _smoothedAngle;
 
         public int Count { get; private set; }
         public string State { get; private set; } = "BOTTOM";
+        public string Name { get { return "Pullup"; } }
+        public string ResultText(double fps) { return "Pull-ups counted: " + Count; }
+        public string OverlayText(double fps) { return "Pullup - " + Count; }
+        public string StatusText { get { return "State: " + State; } }
+
+        // A pull-up: upright body, hands above the shoulders, and the elbow angle goes up and down
+        public double Match(List<FrameResult> frames)
+        {
+            return PoseChecks.RepScore(frames, GetElbowAngle,
+                kp => PoseChecks.IsUpright(kp) && PoseChecks.HandsAboveShoulders(kp),
+                MinUsefulRange);
+        }
 
         /// <summary>The (smoothed) elbow angle of the latest frame, or null when not in a pull-up position.</summary>
         public double? LastAngle { get; private set; }

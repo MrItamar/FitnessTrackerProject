@@ -10,20 +10,28 @@ namespace FitnessTrackerProject.Scripts
     /// Because every person is different, Calibrate() first looks at the whole video to find
     /// this person's highest and lowest ratio, then sets the UP and DOWN thresholds between them.
     /// </summary>
-    public class SquatCounter
+    public class SquatCounter: IExerciseCounter
     {
-        private const double RatioSmoothing = 0.4;       // smooths the ratio so it doesn't jitter around a threshold
-        private const double MinUsefulRange = 0.25;      // if the person barely moved, use the default thresholds
+        private const double RatioSmoothing = 0.4;
+        private const double MinUsefulRange = 0.25; 
 
-        private double _upThreshold = 0.76;              // defaults, used if calibration finds too little data
+        private double _upThreshold = 0.76;
         private double _downThreshold = 0.44;
         private double? _smoothedRatio;
-
         public int Count { get; private set; }
         public string State { get; private set; } = "UP";
 
-        /// <summary>The (smoothed) ratio of the latest frame, or null when the legs were not visible.</summary>
         public double? LastRatio { get; private set; }
+        public string Name { get { return "Squat"; } }
+        public string ResultText(double fps) { return "Squats counted: " + Count; }
+        public string OverlayText(double fps) { return "Squat - " + Count; }
+        public string StatusText { get { return "State: " + State; } }
+
+        // A squat: upright body, and the leg ratio really goes up and down
+        public double Match(List<FrameResult> frames)
+        {
+            return PoseChecks.RepScore(frames, GetRatio, PoseChecks.IsUpright, MinUsefulRange);
+        }
 
         /// <summary>
         /// Look at all frames once and set the thresholds from this person's own movement.

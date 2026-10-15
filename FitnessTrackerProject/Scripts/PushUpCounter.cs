@@ -10,7 +10,7 @@ namespace FitnessTrackerProject.Scripts
     /// Like the squat counter, Calibrate() first looks at the whole video to find this person's own
     /// highest and lowest angle and puts the UP / DOWN thresholds between them.
     /// </summary>
-    public class PushUpCounter
+    public class PushUpCounter : IExerciseCounter
     {
         private const float MinVisibility = 0.2f;
         private const double MaxTorsoAngleDegrees = 65;   // torso must be this close to horizontal (otherwise: not a push-up)
@@ -23,7 +23,16 @@ namespace FitnessTrackerProject.Scripts
 
         public int Count { get; private set; }
         public string State { get; private set; } = "UP";
+        public string Name { get { return "Pushup"; } }
+        public string ResultText(double fps) { return "Push-ups counted: " + Count; }
+        public string OverlayText(double fps) { return "Pushup - " + Count; }
+        public string StatusText { get { return "State: " + State; } }
 
+        // A push-up: horizontal body, and the elbow angle goes up and down
+        public double Match(List<FrameResult> frames)
+        {
+            return PoseChecks.RepScore(frames, GetElbowAngle, PoseChecks.IsHorizontal, MinUsefulRange);
+        }
         /// <summary>The (smoothed) elbow angle of the latest frame, or null when not in a push-up position.</summary>
         public double? LastAngle { get; private set; }
 

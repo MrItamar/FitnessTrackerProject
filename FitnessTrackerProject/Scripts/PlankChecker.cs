@@ -16,7 +16,7 @@ namespace FitnessTrackerProject.Scripts
     /// Good plank = the line shoulder -> ankle is nearly horizontal AND the hip is close to that line.
     /// Everything is measured relative to body length, so it works at any video resolution.
     /// </summary>
-    public class PlankChecker
+    public class PlankChecker : IExerciseCounter
     {
         private const float MinVisibility = 0.35f;
         private const double MaxBodyAngleDegrees = 30;   // more tilted than this = not a plank
@@ -32,6 +32,42 @@ namespace FitnessTrackerProject.Scripts
             get { return Status == PlankStatus.Good; }
         }
 
+        private double _fps = 30;   // remembered from the last OverlayText/ResultText call
+
+        public string Name { get { return "Plank"; } }
+        public void Calibrate(List<FrameResult> frames) { }   // a plank needs no calibration
+        public string ResultText(double fps) { return "Plank hold time: " + HoldSeconds(fps) + " seconds"; }
+        public string OverlayText(double fps) { return "Plank - " + HoldSeconds(fps) + "s"; }
+
+        public string StatusText
+        {
+            get
+            {
+                switch (Status)
+                {
+                    case PlankStatus.Good: return "Good Form!";
+                    case PlankStatus.HipsTooLow: return "Hips too low!";
+                    case PlankStatus.HipsTooHigh: return "Hips too high!";
+                    default: return "Get into plank position";
+                }
+            }
+        }
+
+        // A plank: the body is in plank position, and it holds STILL (a moving elbow would be a push-up)
+        public double Match(List<FrameResult> frames)
+        {
+            double posture = PoseChecks.Fraction(frames, kp => CheckForm(kp) != PlankStatus.NotPlank);
+
+            double stillness = 1.0;
+            List<double> angles = PoseChecks.ElbowAngles(frames);
+            if (angles.Count >= 15)
+            {
+                // no movement = 1, 40 degrees of movement or more = 0
+                stillness = 1.0 - Math.Min(1.0, PoseChecks.Range(angles) / 40.0);
+            }
+
+            return posture * stillness;
+        }
         /// <summary>Call once per frame.</summary>
         public void Update(List<Keypoint> keypoints)
         {
