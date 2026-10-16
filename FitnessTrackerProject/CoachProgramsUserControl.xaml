@@ -149,8 +149,6 @@
                                     <TextBlock x:Name="txtProgramName" FontSize="18" FontWeight="SemiBold" Foreground="#111827"/>
                                     <TextBlock x:Name="txtProgramInfo" FontSize="13" Foreground="#6B7280"/>
                                 </StackPanel>
-                                <Button Content="Delete program" Style="{StaticResource DangerButton}"
-                                        HorizontalAlignment="Right" VerticalAlignment="Top" Click="DeleteProgram_Click"/>
                             </Grid>
 
                             <ScrollViewer MaxHeight="460" VerticalScrollBarVisibility="Auto">

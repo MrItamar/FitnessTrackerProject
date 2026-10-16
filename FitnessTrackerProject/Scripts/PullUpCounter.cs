@@ -25,6 +25,7 @@ namespace FitnessTrackerProject.Scripts
         public string ResultText(double fps) { return "Pull-ups counted: " + Count; }
         public string OverlayText(double fps) { return "Pullup - " + Count; }
         public string StatusText { get { return "State: " + State; } }
+        public bool IsHorizontal { get { return false; } }
 
         // A pull-up: upright body, hands above the shoulders, and the elbow angle goes up and down
         public double Match(List<FrameResult> frames)

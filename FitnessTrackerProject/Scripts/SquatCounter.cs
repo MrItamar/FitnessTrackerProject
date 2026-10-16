@@ -26,8 +26,7 @@ namespace FitnessTrackerProject.Scripts
         public string ResultText(double fps) { return "Squats counted: " + Count; }
         public string OverlayText(double fps) { return "Squat - " + Count; }
         public string StatusText { get { return "State: " + State; } }
-
-        // A squat: upright body, and the leg ratio really goes up and down
+        public bool IsHorizontal { get { return false; } }        // A squat: upright body, and the leg ratio really goes up and down
         public double Match(List<FrameResult> frames)
         {
             return PoseChecks.RepScore(frames, GetRatio, PoseChecks.IsUpright, MinUsefulRange);

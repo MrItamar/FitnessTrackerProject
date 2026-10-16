@@ -47,6 +47,47 @@ namespace FitnessTrackerProject
             ExercisePool.Initialize();
             LoadCatalogFromPool();
             LoadMyPrograms();
+            LoadWorkoutStats();
+        }
+        private void LoadWorkoutStats()
+        {
+            if (currentUserId <= 0) return;
+
+            try
+            {
+                // 1. Populate the "Latest result" card
+                WorkoutHistoryItem latest = WorkoutRepository.GetLatestWorkout(currentUserId);
+                if (latest != null)
+                {
+                    txtBigNumber.Text = latest.ResultValue.ToString();
+                    txtUnit.Text = latest.ExerciseName.Equals("Plank", StringComparison.OrdinalIgnoreCase)
+                                   ? "seconds"
+                                   : $"{latest.ExerciseName.ToLower()} reps";
+                    txtQuality.Text = $"{latest.TrackingQuality}%";
+
+                    txtNote.Text = latest.ResultNote;
+                    noteBadge.Background = Hex(latest.NoteIsGood ? "#DCFCE7" : "#FEF3C7");
+                    txtNote.Foreground = Hex(latest.NoteIsGood ? "#15803D" : "#B45309");
+                    noteBadge.Visibility = Visibility.Visible;
+                }
+
+                // 2. Populate the "Recent workouts" card
+                List<WorkoutHistoryItem> recent = WorkoutRepository.GetRecentWorkouts(currentUserId);
+                if (recent.Count > 0)
+                {
+                    txtNoHistory.Visibility = Visibility.Collapsed;
+                    lstRecentWorkouts.ItemsSource = recent;
+                }
+                else
+                {
+                    txtNoHistory.Visibility = Visibility.Visible;
+                    lstRecentWorkouts.ItemsSource = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Could not load workouts: " + ex.Message);
+            }
         }
         // Opens the hub with an exercise already selected
         public WorkoutHubUserControl(int userId, string startExercise) : this(userId)

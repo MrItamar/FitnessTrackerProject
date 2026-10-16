@@ -108,7 +108,8 @@
         <!-- One program (with the picture of its trainer) -->
         <DataTemplate x:Key="ProgramCard">
             <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
-                    CornerRadius="10" Padding="12" Margin="0,0,0,8">
+            CornerRadius="10" Padding="12" Margin="0,0,0,8" Cursor="Hand"
+            Tag="{Binding Id}" MouseLeftButtonUp="ProgramCard_Click">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -119,7 +120,7 @@
                     <Grid Grid.Column="0" Width="56" Height="56" Margin="0,0,14,0" VerticalAlignment="Top">
                         <Ellipse Fill="#DBEAFE"/>
                         <TextBlock Text="{Binding Initial}" FontSize="22" FontWeight="Bold" Foreground="#1D4ED8"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <Ellipse>
                             <Ellipse.Fill>
                                 <ImageBrush ImageSource="{Binding Picture}" Stretch="UniformToFill"/>
@@ -133,14 +134,17 @@
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <TextBlock Text="by " FontSize="12" Foreground="#6B7280"/>
                             <TextBlock Text="{Binding CoachName}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="#374151"/>
+                               Foreground="#374151"/>
                         </StackPanel>
                         <TextBlock Text="{Binding Stats}" FontSize="12" Foreground="#9CA3AF" Margin="0,4,0,0"/>
+
+                        <!-- Visual hint for the trainee -->
+                        <TextBlock Text="Click to view days &amp; exercises &#x203A;" FontSize="11" Foreground="#2563EB" Margin="0,4,0,0"/>
                     </StackPanel>
 
                     <Button Grid.Column="2" Content="{Binding ButtonText}" Tag="{Binding Id}"
-                            Click="ChooseProgram_Click"
-                            VerticalAlignment="Center" Margin="14,0,0,0">
+                    Click="ChooseProgram_Click"
+                    VerticalAlignment="Center" Margin="14,0,0,0">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource ChooseButton}">
                                 <Style.Triggers>
@@ -154,7 +158,6 @@
                 </Grid>
             </Border>
         </DataTemplate>
-
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">

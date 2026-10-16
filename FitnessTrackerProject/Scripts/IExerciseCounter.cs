@@ -25,5 +25,6 @@ namespace FitnessTrackerProject.Scripts
 
         /// <summary>Small text under it, e.g. "State: UP".</summary>
         string StatusText { get; }
+        bool IsHorizontal { get; }
     }
 }

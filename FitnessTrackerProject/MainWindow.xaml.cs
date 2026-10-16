@@ -9,32 +9,18 @@ using System.Windows.Controls;
 
 namespace FitnessTrackerProject
 {
-    /// <summary>
-    /// The window only connects the pieces together:
-    ///   PoseEstimator = the AI model        BoxTracker   = follows the person
-    ///   SquatCounter  = counts squats       PlankChecker = checks plank form and time
-    ///   PoseDrawer    = draws on the video
-    /// </summary>
     public partial class MainWindow : System.Windows.Window
     {
         private const string ModelPath = "pose_estimation_mediapipe_2023mar.onnx";
         private const string AnalysisWindowName = "Analyzing...";
-        private const string PlaybackWindowName = "Pose Estimation (Calibrated)";
-
-        private const bool ShowTrackingBox = true;   // only used by the playback: cyan box = tracking, red = lost frame
-
-        // The second "review" playback (skeleton + counters + box). Off for now.
-        // It is a normal field (not const) so it can be connected to a checkbox or setting later.
-        private bool ShowPlayback = false;
 
         private PoseEstimator _estimator;
-        private double _videoFps = 30.0;             // remembered from pass 1, used for the plank timer
-        private const string LiveWindowName = "Live Camera";
-        private const double CalibrationSeconds = 8.0;
-        DistanceStatus distance;
+        private double _videoFps = 30.0;
         private int currentUserId;
         private bool IsCoach;
+
         public MainWindow() { }
+
         public MainWindow(int userId)
         {
             InitializeComponent();
@@ -45,6 +31,7 @@ namespace FitnessTrackerProject
             MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
             LoadModel();
         }
+
         private bool CheckIsCoach()
         {
             try
@@ -53,16 +40,16 @@ namespace FitnessTrackerProject
                     "SELECT UserRole FROM Users WHERE ID = ?",
                     p => p.AddWithValue("?", currentUserId));
 
-                // role is null if there is no such user, and DBNull if the cell is empty
                 return role != null && role != DBNull.Value &&
                        string.Equals(role.ToString().Trim(), "Coach", StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Could not check your role: " + ex.Message);
-                return false;   // if we can't tell, don't let them in
+                return false;
             }
         }
+
         private void LoadModel()
         {
             try
@@ -76,369 +63,224 @@ namespace FitnessTrackerProject
         }
         public void ProcessVideo(string video, ExerciseModel exercise)
         {
-            if (_estimator == null)
+            if (_estimator == null) return;
+            this.Cursor = System.Windows.Input.Cursors.Wait;
+
+            // 1. SNEAK PEEK: Read the first 2 seconds just to figure out what movement is happening
+            bool initialOrientation = exercise != null && exercise.IsHorizontal;
+            List<FrameResult> peekFrames = AnalyzeVideoQuick(video, initialOrientation);
+
+            if (peekFrames == null || peekFrames.Count == 0)
             {
-                MessageBox.Show("Cannot process video. AI model failed to load.");
+                this.Cursor = System.Windows.Input.Cursors.Arrow;
                 return;
             }
 
-            bool isHorizontal = exercise != null && exercise.IsHorizontal;
+            // 2. DETECT: Let the AI figure out the real exercise from the sneak peek
+            double detectScore;
+            IExerciseCounter detected = ExerciseRegistry.Detect(peekFrames, out detectScore);
 
-            // PASS 1: Analyze the video (ESC cancels)
-            List<FrameResult> frames = AnalyzeVideo(video, isHorizontal);
-            if (frames == null) return;
+            string finalName = detected != null ? detected.Name : (exercise != null ? exercise.Name : "Squat");
+            IExerciseCounter counter = ExerciseRegistry.Create(finalName) ?? new SquatCounter();
 
-            if (frames.Count == 0)
+            // 3. THE FIX: Ask the counter itself what orientation it needs!
+            bool correctOrientation = counter.IsHorizontal;
+
+            // 4. FULL SILENT SCAN: Scan the whole video perfectly using the correct orientation
+            List<FrameResult> fullFrames = AnalyzeVideo(video, correctOrientation);
+
+            this.Cursor = System.Windows.Input.Cursors.Arrow;
+            if (fullFrames == null || fullFrames.Count == 0) return;
+
+            // 5. CALIBRATE: Learn the body's exact depth and angles for accurate reps
+            if (counter is SquatCounter sq) sq.Calibrate(fullFrames);
+            else if (counter is PushUpCounter pu) pu.Calibrate(fullFrames);
+            else if (counter is PullUpCounter pl) pl.Calibrate(fullFrames);
+
+            // 6. VISIBLE PLAYBACK: Open window and count live
+            PlayVisiblePreview(video, fullFrames, counter);
+
+            // 7. SAVE TO DB
+            int finalValue = GetCounterValue(counter, _videoFps);
+            string note = finalValue > 0 ? "Great workout!" : "Completed";
+            bool noteIsGood = finalValue > 0;
+
+            int trustedFrames = 0;
+            foreach (var f in fullFrames)
             {
-                MessageBox.Show("Could not read any frames from this video.");
-                return;
+                if (f.State == TrackState.Tracking && f.Distance != DistanceStatus.TooClose)
+                    trustedFrames++;
             }
+            int quality = fullFrames.Count > 0 ? (int)((trustedFrames / (float)fullFrames.Count) * 100) : 100;
 
-            // What does the video look like?
-            double score;
-            IExerciseCounter detected = ExerciseRegistry.Detect(frames, out score);
-            Debug.WriteLine("Exercise scores: " + ExerciseRegistry.LastScores);
-
-            // What was picked (or planned in the program)?
-            IExerciseCounter counter = null;
-            if (exercise != null)
+            if (currentUserId > 0)
             {
-                counter = ExerciseRegistry.Create(exercise.Name);
-
-                if (counter == null)
+                try
                 {
-                    MessageBox.Show(exercise.Name + " can't be counted yet.");
-                    return;
+                    ExerciseModel matchedModel = ExercisePool.GetByName(counter.Name) ?? exercise;
+                    int exerciseId = matchedModel != null ? matchedModel.Id : 1;
+
+                    WorkoutRepository.SaveWorkout(currentUserId, exerciseId, finalValue, note, noteIsGood, quality);
+                    MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
                 }
-
-                if (detected != null && detected.Name != counter.Name)
+                catch (Exception ex)
                 {
-                    MessageBoxResult answer = MessageBox.Show(
-                        "You picked " + counter.Name + ", but this video looks like " + detected.Name + "." +
-                        "\n\nCount it as " + detected.Name + "?  (No = count it as " + counter.Name + ")",
-                        "Exercise check", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                    if (answer == MessageBoxResult.Yes) counter = detected;
-                }
-            }
-            else
-            {
-                counter = detected;   // nothing was picked: trust the detector
-            }
-
-            if (counter == null)
-            {
-                MessageBox.Show("Could not tell which exercise this is.");
-                return;
-            }
-
-            counter.Calibrate(frames);
-
-            if (ShowPlayback && video != null)
-                PlayBack(video, frames, counter);
-            else
-                ShowSummary(frames, counter);
-        }
-
-        private void ShowSummary(List<FrameResult> frames, IExerciseCounter counter)
-        {
-            foreach (FrameResult result in frames)
-            {
-                if (result.State == TrackState.Lost || result.Distance == DistanceStatus.TooClose) continue;   // don't count frames we can't trust
-                counter.Update(result.Keypoints);
-            }
-
-            MessageBox.Show(counter.ResultText(_videoFps), "Result", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private void PlayBack(string video, List<FrameResult> frames, IExerciseCounter counter)
-        {
-            using (var capture = new VideoCapture(video))
-            {
-                if (!capture.IsOpened()) return;
-
-                double fps = capture.Fps > 1 ? capture.Fps : 30.0;
-                int delay = Math.Max(1, (int)(1000.0 / fps));
-
-                Cv2.NamedWindow(PlaybackWindowName, WindowFlags.Normal);
-                Cv2.ResizeWindow(PlaybackWindowName, 960, 540);
-
-                using (var frame = new Mat())
-                {
-                    int frameIndex = 0;
-                    while (capture.Read(frame) && !frame.Empty() && frameIndex < frames.Count)
-                    {
-                        FrameResult result = frames[frameIndex];
-
-                        PoseDrawer.DrawSkeleton(frame, result.Keypoints);
-
-                        if (ShowTrackingBox && result.State != TrackState.Searching)
-                        {
-                            Scalar boxColor = result.State == TrackState.Tracking ? Scalar.Cyan : Scalar.Red;
-                            PoseDrawer.DrawBox(frame, result.Box, boxColor);
-                        }
-
-                        if (result.State == TrackState.Lost)
-                        {
-                            PoseDrawer.PutText(frame, "Tracking lost...", 50, 1.2, Scalar.Red, 3);
-                        }
-                        else
-                        {
-                            counter.Update(result.Keypoints);
-                            PoseDrawer.PutText(frame, counter.OverlayText(fps), 50, 1.5, Scalar.Yellow, 3);
-                            PoseDrawer.PutText(frame, counter.StatusText, 100, 1, Scalar.Cyan, 2);
-                        }
-
-                        using (Mat display = PoseDrawer.ResizeForDisplay(frame, 960, 540))
-                        {
-                            Cv2.ImShow(PlaybackWindowName, display);
-                        }
-
-                        if (Cv2.WaitKey(delay) == 27) break;   // ESC = stop
-                        frameIndex++;
-                    }
+                    MessageBox.Show("Could not save workout: " + ex.Message);
                 }
             }
-            Cv2.DestroyAllWindows();
         }
-        private void PlayBack(string video, List<FrameResult> frames, ExerciseModel exercise,
-                              SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
-        {
-            using (var capture = new VideoCapture(video))
-            {
-                if (!capture.IsOpened()) return;
-
-                double fps = capture.Fps > 1 ? capture.Fps : 30.0;
-                int delay = Math.Max(1, (int)(1000.0 / fps));
-
-                Cv2.NamedWindow(PlaybackWindowName, WindowFlags.Normal);
-                Cv2.ResizeWindow(PlaybackWindowName, 960, 540);
-
-                using (var frame = new Mat())
-                {
-                    int frameIndex = 0;
-                    while (capture.Read(frame) && !frame.Empty() && frameIndex < frames.Count)
-                    {
-                        FrameResult result = frames[frameIndex];
-
-                        PoseDrawer.DrawSkeleton(frame, result.Keypoints);
-
-                        if (ShowTrackingBox && result.State != TrackState.Searching)
-                        {
-                            Scalar boxColor = result.State == TrackState.Tracking ? Scalar.Cyan : Scalar.Red;
-                            PoseDrawer.DrawBox(frame, result.Box, boxColor);
-                        }
-
-                        if (result.State == TrackState.Lost)
-                        {
-                            PoseDrawer.PutText(frame, "Tracking lost...", 50, 1.2, Scalar.Red, 3);
-                        }
-                        else if (exercise.Name == "Plank")
-                        {
-                            ShowPlank(frame, result.Keypoints, plank, fps);
-                        }
-                        else if (exercise.Name == "Pushup")
-                        {
-                            ShowPushUps(frame, result.Keypoints, pushUps);
-                        }
-                        else if (exercise.Name == "Pullup")
-                        {
-                            ShowPullUps(frame, result.Keypoints, pullUps);
-                        }
-                        else
-                        {
-                            ShowSquats(frame, result.Keypoints, squats);
-                        }
-
-                        using (Mat display = PoseDrawer.ResizeForDisplay(frame, 960, 540))
-                        {
-                            Cv2.ImShow(PlaybackWindowName, display);
-                        }
-
-                        if (Cv2.WaitKey(delay) == 27) break;   // ESC = stop
-                        frameIndex++;
-                    }
-                }
-            }
-            Cv2.DestroyAllWindows();
-        }
-
-        private void ShowSquats(Mat frame, List<Keypoint> keypoints, SquatCounter squats)
-        {
-            squats.Update(keypoints);
-
-            PoseDrawer.PutText(frame, $"Squat - {squats.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, $"State: {squats.State}", 100, 1, Scalar.Cyan, 2);
-        }
-
-        private void ShowPushUps(Mat frame, List<Keypoint> keypoints, PushUpCounter pushUps)
-        {
-            pushUps.Update(keypoints);
-
-            PoseDrawer.PutText(frame, $"Pushup - {pushUps.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, $"State: {pushUps.State}", 100, 1, Scalar.Cyan, 2);
-        }
-
-        private void ShowPullUps(Mat frame, List<Keypoint> keypoints, PullUpCounter pullUps)
-        {
-            pullUps.Update(keypoints);
-
-            PoseDrawer.PutText(frame, $"Pullup - {pullUps.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, $"State: {pullUps.State}", 100, 1, Scalar.Cyan, 2);
-        }
-
-        private void ShowPlank(Mat frame, List<Keypoint> keypoints, PlankChecker plank, double fps)
-        {
-            plank.Update(keypoints);
-
-            string message;
-            switch (plank.Status)
-            {
-                case PlankStatus.Good: message = "Good Form!"; break;
-                case PlankStatus.HipsTooLow: message = "Hips too low!"; break;
-                case PlankStatus.HipsTooHigh: message = "Hips too high!"; break;
-                default: message = "Get into plank position"; break;
-            }
-
-            Scalar color = plank.IsGoodForm ? Scalar.LimeGreen : Scalar.Red;
-
-            PoseDrawer.PutText(frame, $"Plank - {plank.HoldSeconds(fps)}s", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, message, 100, 1, color, 2);
-        }
-
         private List<FrameResult> AnalyzeVideo(string video, bool isPlankMode)
         {
             var results = new List<FrameResult>();
-            bool cancelled = false;
-            bool isLive = (video == null);
+            bool isLive = string.IsNullOrEmpty(video);
 
             _estimator.StartVideo(isPlankMode);
 
             using (var capture = isLive ? new VideoCapture(0, VideoCaptureAPIs.DSHOW) : new VideoCapture(video))
             {
-                if (!capture.IsOpened())
-                {
-                    if (isLive) MessageBox.Show("Could not open the camera.");
-                    return null;
-                }
+                if (!capture.IsOpened()) return null;
 
-                int totalFrames = isLive ? 0 : capture.FrameCount;
                 if (!isLive) _videoFps = capture.Fps > 1 ? capture.Fps : 30.0;
-
                 BoxTracker tracker = null;
-                Stopwatch clock = Stopwatch.StartNew();
+
+                using (var frame = new Mat())
+                {
+                    while (capture.Read(frame) && !frame.Empty())
+                    {
+                        if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
+                        if (tracker == null) tracker = new BoxTracker(frame.Cols, frame.Rows);
+
+                        BoundingBox boxUsed = isPlankMode ? BoundingBox.FullFrame(frame.Cols, frame.Rows) : tracker.Box;
+                        List<Keypoint> keypoints = _estimator.Estimate(frame, boxUsed);
+
+                        if (tracker.ReacquiredThisFrame) _estimator.ResetSmoothing();
+
+                        DistanceStatus distance = DistanceChecker.Update(keypoints, _estimator.Confidence, frame.Rows);
+                        TrackState state = isPlankMode ? TrackState.Tracking : tracker.Update(keypoints, _estimator.Confidence);
+
+                        results.Add(new FrameResult
+                        {
+                            Keypoints = keypoints,
+                            Box = boxUsed,
+                            State = state,
+                            Distance = distance
+                        });
+
+                        // If testing a live camera, only sample 3 seconds to avoid freezing forever
+                        if (isLive && results.Count > 90) break;
+                    }
+                }
+            }
+            return results;
+        }
+        private void PlayVisiblePreview(string video, List<FrameResult> frames, IExerciseCounter counter)
+        {
+            bool isLive = string.IsNullOrEmpty(video);
+
+            using (var capture = isLive ? new VideoCapture(0, VideoCaptureAPIs.DSHOW) : new VideoCapture(video))
+            {
+                if (!capture.IsOpened()) return;
+
+                // Play at the normal speed of the video
+                int delay = isLive ? 1 : Math.Max(1, (int)(1000.0 / _videoFps));
 
                 Cv2.NamedWindow(AnalysisWindowName, WindowFlags.Normal);
                 Cv2.ResizeWindow(AnalysisWindowName, 640, 360);
 
                 using (var frame = new Mat())
                 {
-                    int frameNumber = 0;
-                    DistanceChecker.Reset();
-
-                    while (capture.Read(frame) && !frame.Empty())
+                    int frameIndex = 0;
+                    while (capture.Read(frame) && !frame.Empty() && frameIndex < frames.Count)
                     {
-                        frameNumber++;
-
                         if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
 
+                        FrameResult res = frames[frameIndex];
+                        frameIndex++;
+
+                        // Trigger the live counter!
+                        if (res.State != TrackState.Lost && res.Distance != DistanceStatus.TooClose)
+                        {
+                            counter.Update(res.Keypoints);
+                        }
+
+                        int currentVal = GetCounterValue(counter, _videoFps);
+                        string counterText = counter.Name == "Plank"
+                            ? $"{counter.Name} - {currentVal}s"
+                            : $"{counter.Name} - {currentVal}";
+
+                        PoseDrawer.DrawSkeleton(frame, res.Keypoints);
+
+                        if (res.Distance == DistanceStatus.TooClose)
+                        {
+                            PoseDrawer.PutText(frame, "Too close - step back", 95, 0.8, Scalar.Red, 2);
+                        }
+
+                        PoseDrawer.PutText(frame, counterText, 45, 1.3, Scalar.Yellow, 3);
+
+                        using (Mat display = PoseDrawer.ResizeForDisplay(frame, 640, 360))
+                        {
+                            Cv2.ImShow(AnalysisWindowName, display);
+                        }
+
+                        if (Cv2.WaitKey(delay) == 27) break; // ESC stops playback
+                    }
+                }
+            }
+            Cv2.DestroyWindow(AnalysisWindowName);
+        }
+        private List<FrameResult> AnalyzeVideoQuick(string video, bool isPlankMode)
+        {
+            var results = new List<FrameResult>();
+            bool isLive = (video == null);
+
+            _estimator.StartVideo(isPlankMode);
+
+            using (var capture = isLive ? new VideoCapture(0, VideoCaptureAPIs.DSHOW) : new VideoCapture(video))
+            {
+                if (!capture.IsOpened()) return null;
+
+                BoxTracker tracker = null;
+                using (var frame = new Mat())
+                {
+                    while (capture.Read(frame) && !frame.Empty())
+                    {
+                        if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
                         if (tracker == null) tracker = new BoxTracker(frame.Cols, frame.Rows);
 
-                        // Keep FullFrame while probing the first 8 frames or when horizontal
-                        bool useFullFrame = _estimator.IsProbing || _estimator.IsHorizontal;
-                        BoundingBox boxUsed = useFullFrame
-                            ? BoundingBox.FullFrame(frame.Cols, frame.Rows)
-                            : tracker.Box;
-
+                        BoundingBox boxUsed = isPlankMode ? BoundingBox.FullFrame(frame.Cols, frame.Rows) : tracker.Box;
                         List<Keypoint> keypoints = _estimator.Estimate(frame, boxUsed);
 
                         if (tracker.ReacquiredThisFrame) _estimator.ResetSmoothing();
 
                         DistanceStatus distance = DistanceChecker.Update(keypoints, _estimator.Confidence, frame.Rows);
+                        TrackState state = isPlankMode ? TrackState.Tracking : tracker.Update(keypoints, _estimator.Confidence);
 
-                        if (useFullFrame)
+                        results.Add(new FrameResult
                         {
-                            results.Add(new FrameResult
-                            {
-                                Keypoints = keypoints,
-                                Box = BoundingBox.FullFrame(frame.Cols, frame.Rows),
-                                State = TrackState.Tracking,
-                                Distance = distance
-                            });
-                        }
-                        else
-                        {
-                            TrackState state = tracker.Update(keypoints, _estimator.Confidence);
-                            results.Add(new FrameResult
-                            {
-                                Keypoints = keypoints,
-                                Box = boxUsed,
-                                State = state,
-                                Distance = distance
-                            });
-                        }
+                            Keypoints = keypoints,
+                            Box = boxUsed,
+                            State = state,
+                            Distance = distance
+                        });
 
-                        if (frameNumber % 2 == 0 && !ShowAnalysisPreview(frame, keypoints, distance, frameNumber, totalFrames))
-                        {
-                            if (!isLive) cancelled = true;
-                            break;
-                        }
+                        if (isLive && results.Count > 60) break; // For live camera, sample first 60 frames for detection
                     }
-
-                    if (isLive && frameNumber > 0)
-                        _videoFps = frameNumber / Math.Max(0.001, clock.Elapsed.TotalSeconds);
                 }
             }
-
-            Cv2.DestroyWindow(AnalysisWindowName);
-            return cancelled ? null : results;
+            return results;
         }
-
-
-        private bool ShowAnalysisPreview(Mat frame, List<Keypoint> keypoints, DistanceStatus status,
-                                         int frameNumber, int totalFrames)
+        private int GetCounterValue(IExerciseCounter counter, double fps)
         {
-            using (var preview = frame.Clone())
-            {
-                PoseDrawer.DrawSkeleton(preview, keypoints);
-
-                using (Mat small = PoseDrawer.ResizeForDisplay(preview, 640, 360))
-                {
-                    string guidance;
-                    Scalar color;
-                    if (status == DistanceStatus.TooClose)
-                    {
-                        guidance = "Too close - step back";
-                        color = Scalar.Red;
-                    }
-                    else
-                    {
-                        guidance = "Good tracking!";
-                        color = Scalar.LimeGreen;
-                    }
-
-                    string progress = totalFrames > 0
-                        ? $"Analyzing {frameNumber}/{totalFrames}  (ESC = cancel)"
-                        : $"Analyzing {frameNumber}  (ESC = cancel)";
-
-                    Cv2.PutText(small, progress, new OpenCvSharp.Point(10, 25),
-                        HersheyFonts.HersheySimplex, 0.5, Scalar.White, 1);
-                    Cv2.PutText(small, guidance, new OpenCvSharp.Point(10, 60),
-                        HersheyFonts.HersheySimplex, 0.8, color, 2);
-
-                    // Temporary, for tuning thresholds. Remove when done.
-                    Cv2.PutText(small, DistanceChecker.DebugInfo, new OpenCvSharp.Point(10, 90),
-                        HersheyFonts.HersheySimplex, 0.45, Scalar.Yellow, 1);
-
-                    Cv2.ImShow(AnalysisWindowName, small);
-                    return Cv2.WaitKey(1) != 27;
-                }
-            }
+            if (counter is PlankChecker pk) return pk.HoldSeconds(fps);
+            if (counter is SquatCounter sq) return sq.Count;
+            if (counter is PushUpCounter pu) return pu.Count;
+            if (counter is PullUpCounter pl) return pl.Count;
+            return 0;
         }
 
         private void OpenSidebar(object sender, RoutedEventArgs e)
         {
-            if(Sidebar.Visibility == Visibility.Visible)
+            if (Sidebar.Visibility == Visibility.Visible)
             {
                 Sidebar.Visibility = Visibility.Hidden;
                 MainContentTransform.X = 0;
@@ -449,6 +291,7 @@ namespace FitnessTrackerProject
                 MainContentTransform.X = 200;
             }
         }
+
         private void SwitchScreen(object sender, RoutedEventArgs e)
         {
             Button btn = sender as Button;
@@ -459,14 +302,10 @@ namespace FitnessTrackerProject
                 case 0:
                     MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
                     break;
-
                 case 1:
-                    // CoachStudio
                     MainFrame.Navigate(new CoachStudioUserControl(currentUserId));
                     break;
-
                 case 2:
-                    // Profile
                     MainFrame.Navigate(new ProfileUserControl(currentUserId));
                     break;
                 case 3:

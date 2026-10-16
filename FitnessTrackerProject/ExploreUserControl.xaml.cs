@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Navigation;
 
 namespace FitnessTrackerProject
 {
@@ -113,6 +115,20 @@ namespace FitnessTrackerProject
             }
 
             LoadLists();
+        }
+        private void ProgramCard_Click(object sender, MouseButtonEventArgs e)
+        {
+            Border card = sender as Border;
+            if (card != null && card.Tag != null)
+            {
+                int programId = Convert.ToInt32(card.Tag);
+                NavigationService navigation = NavigationService.GetNavigationService(this);
+                if (navigation != null)
+                {
+                    // Open the detail page showing all days, exercises, sets, and reps
+                    navigation.Navigate(new ProgramDetailUserControl(_traineeId, programId));
+                }
+            }
         }
     }
 }

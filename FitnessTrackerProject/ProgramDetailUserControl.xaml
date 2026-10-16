@@ -102,9 +102,8 @@
         <Grid Margin="24,16,24,24" MaxWidth="760">
             <StackPanel>
 
-                <!-- Back (left margin leaves room for the menu button) -->
-                <Button Content="&#x2039;  Back to WorkoutHub" Style="{StaticResource LinkButton}"
-                        Click="Back_Click" HorizontalAlignment="Left" Margin="48,0,0,14"/>
+                <Button Content="&#x2039;  Back" Style="{StaticResource LinkButton}"
+        Click="Back_Click" HorizontalAlignment="Left" Margin="48,0,0,14"/>
 
                 <!-- Program header with the trainer's picture -->
                 <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,0,12">

@@ -304,11 +304,39 @@
             </Grid>
 
             <!-- Recent workouts (empty for now) -->
+            <!-- Recent workouts -->
             <Border Grid.Row="3" Background="White" CornerRadius="12" Padding="16" Margin="0,12,0,0">
                 <StackPanel>
                     <TextBlock Text="Recent workouts" Style="{StaticResource CardTitle}" Margin="0,0,0,6"/>
                     <TextBlock x:Name="txtNoHistory" Text="No workouts yet. Pick an exercise and add a video."
-                               FontSize="13" Foreground="#6B7280" Margin="0,6,0,0"/>
+                   FontSize="13" Foreground="#6B7280" Margin="0,6,0,0"/>
+
+                    <!-- The list of previous workouts -->
+                    <ItemsControl x:Name="lstRecentWorkouts" Margin="0,8,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
+                            CornerRadius="10" Padding="12,10" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ExerciseName}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                            <TextBlock Text="{Binding DateText}" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ResultDisplay}" FontSize="15" FontWeight="Bold" Foreground="#3B82F6" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="{Binding ResultNote}" FontSize="11" Foreground="#9CA3AF" HorizontalAlignment="Right"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
         </Grid>

@@ -38,6 +38,7 @@ namespace FitnessTrackerProject.Scripts
         public void Calibrate(List<FrameResult> frames) { }   // a plank needs no calibration
         public string ResultText(double fps) { return "Plank hold time: " + HoldSeconds(fps) + " seconds"; }
         public string OverlayText(double fps) { return "Plank - " + HoldSeconds(fps) + "s"; }
+        public bool IsHorizontal { get { return true; } }
 
         public string StatusText
         {

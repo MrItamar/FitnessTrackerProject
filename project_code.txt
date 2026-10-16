@@ -758,6 +758,106 @@ namespace FitnessTrackerProject.Scripts
     }
 }
 
+// === FILE: C:\Users\Itamar\source\repos\FitnessTrackerProject\FitnessTrackerProject\Scripts\ExerciseRegistry.cs ===
+
+using System;
+using System.Collections.Generic;
+
+namespace FitnessTrackerProject.Scripts
+{
+    /// <summary>
+    /// The list of all exercises the app can count.
+    /// To add an exercise: write a class that implements IExerciseCounter and add ONE line below.
+    /// </summary>
+    public static class ExerciseRegistry
+    {
+        // Below this score we say "could not tell which exercise this is"
+        private const double MinScore = 0.25;
+
+        // Each line creates a NEW counter (a counter remembers its count, so every video needs its own)
+        private static readonly List<Func<IExerciseCounter>> Factories = new List<Func<IExerciseCounter>>
+        {
+            () => new SquatCounter(),
+            () => new PullUpCounter(),
+            () => new PushUpCounter(),
+            () => new PlankChecker()
+        };
+
+        /// <summary>The scores of the last Detect, like "Squat 0.12   Pullup 0.00 ...". Handy while tuning.</summary>
+        public static string LastScores { get; private set; } = "";
+
+        /// <summary>A new counter for this exercise name, or null if there is none (yet).</summary>
+        public static IExerciseCounter Create(string name)
+        {
+            foreach (Func<IExerciseCounter> factory in Factories)
+            {
+                IExerciseCounter counter = factory();
+                if (string.Equals(counter.Name, name, StringComparison.OrdinalIgnoreCase)) return counter;
+            }
+            return null;
+        }
+
+        /// <summary>Asks every exercise "does this video look like you?" and returns the best one (or null).</summary>
+        public static IExerciseCounter Detect(List<FrameResult> frames, out double bestScore)
+        {
+            IExerciseCounter best = null;
+            bestScore = 0;
+            string report = "";
+
+            foreach (Func<IExerciseCounter> factory in Factories)
+            {
+                IExerciseCounter counter = factory();
+                double score = counter.Match(frames);
+
+                report += counter.Name + " " + score.ToString("0.00") + "   ";
+
+                if (score > bestScore)
+                {
+                    best = counter;
+                    bestScore = score;
+                }
+            }
+
+            LastScores = report;
+
+            if (bestScore < MinScore) return null;
+            return best;
+        }
+    }
+}
+
+// === FILE: C:\Users\Itamar\source\repos\FitnessTrackerProject\FitnessTrackerProject\Scripts\IExerciseCounter.cs ===
+
+using System.Collections.Generic;
+
+namespace FitnessTrackerProject.Scripts
+{
+    /// <summary>What every exercise (counter) must be able to do.</summary>
+    public interface IExerciseCounter
+    {
+        /// <summary>Must be the same as ExerciseName in ExercisesTable.</summary>
+        string Name { get; }
+
+        /// <summary>0 to 1: how much does this video look like this exercise? (0 = not at all)</summary>
+        double Match(List<FrameResult> frames);
+
+        /// <summary>Look at the whole video once and adjust to this person (can do nothing).</summary>
+        void Calibrate(List<FrameResult> frames);
+
+        /// <summary>Call once per frame.</summary>
+        void Update(List<Keypoint> keypoints);
+
+        /// <summary>The message shown at the end, e.g. "Squats counted: 5".</summary>
+        string ResultText(double fps);
+
+        /// <summary>Big text on the playback video, e.g. "Squat - 5".</summary>
+        string OverlayText(double fps);
+
+        /// <summary>Small text under it, e.g. "State: UP".</summary>
+        string StatusText { get; }
+    }
+}
+
 // === FILE: C:\Users\Itamar\source\repos\FitnessTrackerProject\FitnessTrackerProject\Scripts\KeyPoints.cs ===
 
 using System.Collections.Generic;
@@ -851,7 +951,7 @@ namespace FitnessTrackerProject.Scripts
     /// Good plank = the line shoulder -> ankle is nearly horizontal AND the hip is close to that line.
     /// Everything is measured relative to body length, so it works at any video resolution.
     /// </summary>
-    public class PlankChecker
+    public class PlankChecker : IExerciseCounter
     {
         private const float MinVisibility = 0.35f;
         private const double MaxBodyAngleDegrees = 30;   // more tilted than this = not a plank
@@ -867,6 +967,42 @@ namespace FitnessTrackerProject.Scripts
             get { return Status == PlankStatus.Good; }
         }
 
+        private double _fps = 30;   // remembered from the last OverlayText/ResultText call
+
+        public string Name { get { return "Plank"; } }
+        public void Calibrate(List<FrameResult> frames) { }   // a plank needs no calibration
+        public string ResultText(double fps) { return "Plank hold time: " + HoldSeconds(fps) + " seconds"; }
+        public string OverlayText(double fps) { return "Plank - " + HoldSeconds(fps) + "s"; }
+
+        public string StatusText
+        {
+            get
+            {
+                switch (Status)
+                {
+                    case PlankStatus.Good: return "Good Form!";
+                    case PlankStatus.HipsTooLow: return "Hips too low!";
+                    case PlankStatus.HipsTooHigh: return "Hips too high!";
+                    default: return "Get into plank position";
+                }
+            }
+        }
+
+        // A plank: the body is in plank position, and it holds STILL (a moving elbow would be a push-up)
+        public double Match(List<FrameResult> frames)
+        {
+            double posture = PoseChecks.Fraction(frames, kp => CheckForm(kp) != PlankStatus.NotPlank);
+
+            double stillness = 1.0;
+            List<double> angles = PoseChecks.ElbowAngles(frames);
+            if (angles.Count >= 15)
+            {
+                // no movement = 1, 40 degrees of movement or more = 0
+                stillness = 1.0 - Math.Min(1.0, PoseChecks.Range(angles) / 40.0);
+            }
+
+            return posture * stillness;
+        }
         /// <summary>Call once per frame.</summary>
         public void Update(List<Keypoint> keypoints)
         {
@@ -916,6 +1052,181 @@ namespace FitnessTrackerProject.Scripts
             if (hipOffset > HipTolerance) return PlankStatus.HipsTooLow;
             if (hipOffset < -HipTolerance) return PlankStatus.HipsTooHigh;
             return PlankStatus.Good;
+        }
+    }
+}
+
+// === FILE: C:\Users\Itamar\source\repos\FitnessTrackerProject\FitnessTrackerProject\Scripts\PoseChecks.cs ===
+
+using System;
+using System.Collections.Generic;
+
+namespace FitnessTrackerProject.Scripts
+{
+    public static class PoseChecks
+    {
+        private const float MinVisibility = 0.35f;
+
+        /// <summary>Frames the tracker trusts.</summary>
+        public static int UsableFrames(List<FrameResult> frames)
+        {
+            int count = 0;
+            foreach (FrameResult frame in frames)
+            {
+                if (frame.State != TrackState.Lost && frame.Keypoints != null) count++;
+            }
+            return count;
+        }
+
+        /// <summary>Is the body (shoulder to ankle) more vertical than horizontal?</summary>
+        public static bool IsUpright(List<Keypoint> kp)
+        {
+            float dx, dy;
+            if (!BodyDirection(kp, out dx, out dy)) return false;
+            return dy > dx;
+        }
+
+        /// <summary>Is the body more horizontal than vertical?</summary>
+        public static bool IsHorizontal(List<Keypoint> kp)
+        {
+            float dx, dy;
+            if (!BodyDirection(kp, out dx, out dy)) return false;
+            return dx >= dy;
+        }
+
+        /// <summary>Is at least one wrist above its shoulder? (Y = 0 is the top of the picture)</summary>
+        public static bool HandsAboveShoulders(List<Keypoint> kp)
+        {
+            if (kp == null || kp.Count <= Landmark.RightWrist) return false;
+
+            bool left = kp[Landmark.LeftWrist].Visibility >= MinVisibility
+                        && kp[Landmark.LeftWrist].Y < kp[Landmark.LeftShoulder].Y;
+            bool right = kp[Landmark.RightWrist].Visibility >= MinVisibility
+                         && kp[Landmark.RightWrist].Y < kp[Landmark.RightShoulder].Y;
+
+            return left || right;
+        }
+
+        /// <summary>The elbow angle in degrees on the better visible side, or null.</summary>
+        public static double? ElbowAngle(List<Keypoint> kp)
+        {
+            if (kp == null || kp.Count <= Landmark.RightWrist) return null;
+
+            bool useLeft = kp[Landmark.LeftShoulder].Visibility >= kp[Landmark.RightShoulder].Visibility;
+            Keypoint shoulder = kp[useLeft ? Landmark.LeftShoulder : Landmark.RightShoulder];
+            Keypoint elbow = kp[useLeft ? Landmark.LeftElbow : Landmark.RightElbow];
+            Keypoint wrist = kp[useLeft ? Landmark.LeftWrist : Landmark.RightWrist];
+
+            if (shoulder.Visibility < MinVisibility || elbow.Visibility < MinVisibility
+                || wrist.Visibility < MinVisibility) return null;
+
+            double upperX = shoulder.X - elbow.X, upperY = shoulder.Y - elbow.Y;
+            double lowerX = wrist.X - elbow.X, lowerY = wrist.Y - elbow.Y;
+
+            double upperLength = Math.Sqrt(upperX * upperX + upperY * upperY);
+            double lowerLength = Math.Sqrt(lowerX * lowerX + lowerY * lowerY);
+            if (upperLength < 1 || lowerLength < 1) return null;
+
+            double cosine = (upperX * lowerX + upperY * lowerY) / (upperLength * lowerLength);
+            cosine = Math.Max(-1, Math.Min(1, cosine));
+
+            return Math.Acos(cosine) * 180.0 / Math.PI;
+        }
+
+        /// <summary>The elbow angle of every trusted frame where the arm is visible.</summary>
+        public static List<double> ElbowAngles(List<FrameResult> frames)
+        {
+            List<double> angles = new List<double>();
+            foreach (FrameResult frame in frames)
+            {
+                if (frame.State == TrackState.Lost || frame.Keypoints == null) continue;
+
+                double? angle = ElbowAngle(frame.Keypoints);
+                if (angle.HasValue) angles.Add(angle.Value);
+            }
+            return angles;
+        }
+
+        /// <summary>The share (0 to 1) of trusted frames where the check is true.</summary>
+        public static double Fraction(List<FrameResult> frames, Func<List<Keypoint>, bool> check)
+        {
+            int usable = UsableFrames(frames);
+            if (usable == 0) return 0;
+
+            int matching = 0;
+            foreach (FrameResult frame in frames)
+            {
+                if (frame.State == TrackState.Lost || frame.Keypoints == null) continue;
+                if (check(frame.Keypoints)) matching++;
+            }
+            return (double)matching / usable;
+        }
+
+        /// <summary>
+        /// Score for exercises with repetitions (squat, push-up, pull-up):
+        ///   posture  = how often the body is in the right position
+        ///   movement = does the measured value (angle, ratio) really go up and down?
+        /// Standing still around gives movement = 0, so the score stays low.
+        /// </summary>
+        public static double RepScore(List<FrameResult> frames,
+                                      Func<List<Keypoint>, double?> signal,
+                                      Func<List<Keypoint>, bool> posture,
+                                      double minRange)
+        {
+            int usable = UsableFrames(frames);
+            List<double> values = new List<double>();
+
+            foreach (FrameResult frame in frames)
+            {
+                if (frame.State == TrackState.Lost || frame.Keypoints == null) continue;
+                if (!posture(frame.Keypoints)) continue;
+
+                double? value = signal(frame.Keypoints);
+                if (value.HasValue) values.Add(value.Value);
+            }
+
+            if (usable == 0 || values.Count < 30) return 0;
+
+            double postureShare = (double)values.Count / usable;
+            double movement = Math.Min(1.0, Range(values) / minRange);
+            return postureShare * movement;
+        }
+
+        /// <summary>Biggest value minus smallest value (using the 5th and 95th percentile, so one glitch doesn't matter).</summary>
+        public static double Range(List<double> values)
+        {
+            if (values.Count == 0) return 0;
+
+            List<double> sorted = new List<double>(values);
+            sorted.Sort();
+            return Percentile(sorted, 0.95) - Percentile(sorted, 0.05);
+        }
+
+        private static double Percentile(List<double> sorted, double p)
+        {
+            double position = p * (sorted.Count - 1);
+            int lower = (int)Math.Floor(position);
+            int upper = (int)Math.Ceiling(position);
+            return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+        }
+
+        private static bool BodyDirection(List<Keypoint> kp, out float dx, out float dy)
+        {
+            dx = 0;
+            dy = 0;
+            if (kp == null || kp.Count <= Landmark.RightAnkle) return false;
+
+            bool useLeft = kp[Landmark.LeftShoulder].Visibility >= kp[Landmark.RightShoulder].Visibility;
+            Keypoint shoulder = kp[useLeft ? Landmark.LeftShoulder : Landmark.RightShoulder];
+            Keypoint hip = kp[useLeft ? Landmark.LeftHip : Landmark.RightHip];
+            Keypoint ankle = kp[useLeft ? Landmark.LeftAnkle : Landmark.RightAnkle];
+
+            if (shoulder.Visibility < MinVisibility || hip.Visibility < MinVisibility) return false;
+
+            Keypoint lower = ankle.Visibility >= MinVisibility ? ankle : hip;
+            dx = Math.Abs(lower.X - shoulder.X);
+            dy = Math.Abs(lower.Y - shoulder.Y);
+            return true;
         }
     }
 }
@@ -1403,7 +1714,66 @@ namespace FitnessTrackerProject.Scripts
                 }
             }
         }
+        public static void UpdateProgram(int programId, int coachId, string name, string goal, string level, List<CoachDay> days)
+        {
+            // 1. Update program details
+            DatabaseHelper.ExecuteNonQuery(
+                "UPDATE ProgramsTable SET ProgramName = ?, Goal = ?, ProgramLevel = ? WHERE ProgramID = ? AND CoachID = ?",
+                p =>
+                {
+                    p.AddWithValue("?", name);
+                    p.AddWithValue("?", goal);
+                    p.AddWithValue("?", level);
+                    p.AddWithValue("?", programId);
+                    p.AddWithValue("?", coachId);
+                });
 
+            // 2. Remove old exercises and days
+            DatabaseHelper.ExecuteNonQuery(
+                "DELETE FROM ProgramExercisesTable WHERE DayID IN (SELECT DayID FROM ProgramDaysTable WHERE ProgramID = ?)",
+                p => p.AddWithValue("?", programId));
+
+            DatabaseHelper.ExecuteNonQuery(
+                "DELETE FROM ProgramDaysTable WHERE ProgramID = ?",
+                p => p.AddWithValue("?", programId));
+
+            // 3. Insert the updated days and exercises
+            for (int d = 0; d < days.Count; d++)
+            {
+                CoachDay day = days[d];
+                string focus = string.IsNullOrWhiteSpace(day.Focus) ? "" : day.Focus.Trim();
+
+                DatabaseHelper.ExecuteNonQuery(
+                    "INSERT INTO ProgramDaysTable (ProgramID, DayNumber, DayFocus) VALUES (?, ?, ?)",
+                    p =>
+                    {
+                        p.AddWithValue("?", programId);
+                        p.AddWithValue("?", d + 1);
+                        p.AddWithValue("?", focus);
+                    });
+
+                // Get the ID of the day we just added
+                int dayId = Convert.ToInt32(DatabaseHelper.ExecuteScalar(
+                    "SELECT MAX(DayID) FROM ProgramDaysTable WHERE ProgramID = ?",
+                    p => p.AddWithValue("?", programId)));
+
+                for (int e = 0; e < day.Exercises.Count; e++)
+                {
+                    CoachExercise ex = day.Exercises[e];
+                    DatabaseHelper.ExecuteNonQuery(
+                        "INSERT INTO ProgramExercisesTable (DayID, ExerciseID, SortOrder, Sets, Reps, RestTime) VALUES (?, ?, ?, ?, ?, ?)",
+                        p =>
+                        {
+                            p.AddWithValue("?", dayId);
+                            p.AddWithValue("?", ex.ExerciseId);
+                            p.AddWithValue("?", e + 1);
+                            p.AddWithValue("?", ex.Sets.Trim());
+                            p.AddWithValue("?", ex.Reps.Trim());
+                            p.AddWithValue("?", ex.Rest.Trim());
+                        });
+                }
+            }
+        }
         /// <summary>Runs an INSERT and returns the AutoNumber ID that Access just created.</summary>
         private static int InsertAndGetId(OleDbConnection connection, OleDbTransaction transaction,
                                           string sql, params object[] values)
@@ -1449,19 +1819,30 @@ namespace FitnessTrackerProject.Scripts
     /// Top of the pull-up (chin to bar) = small angle (about 70-90).
     /// A rep is counted when the person pulls UP to the top and lowers back down to a hang.
     /// </summary>
-    public class PullUpCounter
+    public class PullUpCounter : IExerciseCounter
     {
         private const float MinVisibility = 0.2f;
-        private const double MaxTorsoDeviationDegrees = 30; // torso must be roughly vertical (hanging)
-        private const double AngleSmoothing = 0.7;          // smooths the angle so it doesn't jitter
-        private const double MinUsefulRange = 40;           // minimum range of motion to calibrate
-
-        private double _hangThreshold = 150;                // default angle for arms straight (hanging)
-        private double _pullThreshold = 100;                // default angle for arms bent (top of pull-up)
+        private const double MaxTorsoDeviationDegrees = 30;
+        private const double AngleSmoothing = 0.7;
+        private const double MinUsefulRange = 40; 
+        private double _hangThreshold = 150; 
+        private double _pullThreshold = 100;
         private double? _smoothedAngle;
 
         public int Count { get; private set; }
         public string State { get; private set; } = "BOTTOM";
+        public string Name { get { return "Pullup"; } }
+        public string ResultText(double fps) { return "Pull-ups counted: " + Count; }
+        public string OverlayText(double fps) { return "Pullup - " + Count; }
+        public string StatusText { get { return "State: " + State; } }
+
+        // A pull-up: upright body, hands above the shoulders, and the elbow angle goes up and down
+        public double Match(List<FrameResult> frames)
+        {
+            return PoseChecks.RepScore(frames, GetElbowAngle,
+                kp => PoseChecks.IsUpright(kp) && PoseChecks.HandsAboveShoulders(kp),
+                MinUsefulRange);
+        }
 
         /// <summary>The (smoothed) elbow angle of the latest frame, or null when not in a pull-up position.</summary>
         public double? LastAngle { get; private set; }
@@ -1595,7 +1976,7 @@ namespace FitnessTrackerProject.Scripts
     /// Like the squat counter, Calibrate() first looks at the whole video to find this person's own
     /// highest and lowest angle and puts the UP / DOWN thresholds between them.
     /// </summary>
-    public class PushUpCounter
+    public class PushUpCounter : IExerciseCounter
     {
         private const float MinVisibility = 0.2f;
         private const double MaxTorsoAngleDegrees = 65;   // torso must be this close to horizontal (otherwise: not a push-up)
@@ -1608,7 +1989,16 @@ namespace FitnessTrackerProject.Scripts
 
         public int Count { get; private set; }
         public string State { get; private set; } = "UP";
+        public string Name { get { return "Pushup"; } }
+        public string ResultText(double fps) { return "Push-ups counted: " + Count; }
+        public string OverlayText(double fps) { return "Pushup - " + Count; }
+        public string StatusText { get { return "State: " + State; } }
 
+        // A push-up: horizontal body, and the elbow angle goes up and down
+        public double Match(List<FrameResult> frames)
+        {
+            return PoseChecks.RepScore(frames, GetElbowAngle, PoseChecks.IsHorizontal, MinUsefulRange);
+        }
         /// <summary>The (smoothed) elbow angle of the latest frame, or null when not in a push-up position.</summary>
         public double? LastAngle { get; private set; }
 
@@ -1739,20 +2129,28 @@ namespace FitnessTrackerProject.Scripts
     /// Because every person is different, Calibrate() first looks at the whole video to find
     /// this person's highest and lowest ratio, then sets the UP and DOWN thresholds between them.
     /// </summary>
-    public class SquatCounter
+    public class SquatCounter: IExerciseCounter
     {
-        private const double RatioSmoothing = 0.4;       // smooths the ratio so it doesn't jitter around a threshold
-        private const double MinUsefulRange = 0.25;      // if the person barely moved, use the default thresholds
+        private const double RatioSmoothing = 0.4;
+        private const double MinUsefulRange = 0.25; 
 
-        private double _upThreshold = 0.76;              // defaults, used if calibration finds too little data
+        private double _upThreshold = 0.76;
         private double _downThreshold = 0.44;
         private double? _smoothedRatio;
-
         public int Count { get; private set; }
         public string State { get; private set; } = "UP";
 
-        /// <summary>The (smoothed) ratio of the latest frame, or null when the legs were not visible.</summary>
         public double? LastRatio { get; private set; }
+        public string Name { get { return "Squat"; } }
+        public string ResultText(double fps) { return "Squats counted: " + Count; }
+        public string OverlayText(double fps) { return "Squat - " + Count; }
+        public string StatusText { get { return "State: " + State; } }
+
+        // A squat: upright body, and the leg ratio really goes up and down
+        public double Match(List<FrameResult> frames)
+        {
+            return PoseChecks.RepScore(frames, GetRatio, PoseChecks.IsUpright, MinUsefulRange);
+        }
 
         /// <summary>
         /// Look at all frames once and set the thresholds from this person's own movement.
@@ -2268,18 +2666,119 @@ namespace FitnessTrackerProject.Scripts
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Data;
+using System.Data.OleDb;
 
 namespace FitnessTrackerProject.Scripts
 {
     public class WorkoutResult
     {
-        public int Value { get; set; }            // reps, or seconds for the plank
-        public string Note { get; set; }          // short badge text, e.g. "Good form"
-        public bool NoteIsGood { get; set; }      // green badge if true, amber if false
-        public int TrackingQuality { get; set; }  // 0..100, share of frames the tracker trusted
+        public string ExerciseName { get; set; }
+        public int Value { get; set; }
+        public bool IsSeconds { get; set; }
+        public string Note { get; set; }
+        public bool NoteIsGood { get; set; }
+        public int TrackingQuality { get; set; }
+        public DateTime Time { get; set; }
+    }
+
+    public class WorkoutHistoryItem
+    {
+        public string ExerciseName { get; set; }
+        public int ResultValue { get; set; }
+        public string ResultDisplay { get; set; }
+        public string ResultNote { get; set; }
+        public bool NoteIsGood { get; set; }
+        public int TrackingQuality { get; set; }
+        public DateTime WorkoutDate { get; set; }
+        public string DateText { get { return WorkoutDate.ToString("d MMM, HH:mm"); } }
+    }
+
+    public static class WorkoutRepository
+    {
+        public static void SaveWorkout(int userId, int exerciseId, int resultValue,
+                                      string resultNote, bool noteIsGood, int trackingQuality)
+        {
+            string sql = @"INSERT INTO Workouts 
+                           (UserID, ExerciseID, WorkoutDate, ResultValue, ResultNote, NoteIsGood, TrackingQuality) 
+                           VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+            DatabaseHelper.ExecuteNonQuery(sql, p =>
+            {
+                p.AddWithValue("?", userId);
+                p.AddWithValue("?", exerciseId);
+                p.Add("?", OleDbType.Date).Value = DateTime.Now;
+                p.AddWithValue("?", resultValue);
+                p.AddWithValue("?", string.IsNullOrWhiteSpace(resultNote) ? "" : resultNote);
+                p.AddWithValue("?", noteIsGood);
+                p.AddWithValue("?", trackingQuality);
+            });
+        }
+
+        public static WorkoutHistoryItem GetLatestWorkout(int userId)
+        {
+            string sql = @"SELECT TOP 1 w.ResultValue, w.ResultNote, w.NoteIsGood, 
+                                        w.TrackingQuality, w.WorkoutDate, e.ExerciseName
+                           FROM Workouts AS w
+                           INNER JOIN ExercisesTable AS e ON w.ExerciseID = e.ExerciseID
+                           WHERE w.UserID = ?
+                           ORDER BY w.WorkoutDate DESC, w.WorkoutID DESC";
+
+            DataTable dt = DatabaseHelper.ExecuteQueryTable(sql, p => p.AddWithValue("?", userId));
+            if (dt.Rows.Count == 0) return null;
+
+            DataRow row = dt.Rows[0];
+            string exName = row["ExerciseName"].ToString();
+            int val = Convert.ToInt32(row["ResultValue"]);
+
+            return new WorkoutHistoryItem
+            {
+                ExerciseName = exName,
+                ResultValue = val,
+                ResultDisplay = exName.Equals("Plank", StringComparison.OrdinalIgnoreCase)
+                                ? $"{val}s"
+                                : $"{val} reps",
+                ResultNote = row["ResultNote"]?.ToString() ?? "",
+                NoteIsGood = Convert.ToBoolean(row["NoteIsGood"]),
+                TrackingQuality = Convert.ToInt32(row["TrackingQuality"]),
+                WorkoutDate = Convert.ToDateTime(row["WorkoutDate"])
+            };
+        }
+
+        public static List<WorkoutHistoryItem> GetRecentWorkouts(int userId)
+        {
+            var list = new List<WorkoutHistoryItem>();
+
+            string sql = @"SELECT TOP 5 w.ResultValue, w.ResultNote, w.NoteIsGood, 
+                                        w.TrackingQuality, w.WorkoutDate, e.ExerciseName
+                           FROM Workouts AS w
+                           INNER JOIN ExercisesTable AS e ON w.ExerciseID = e.ExerciseID
+                           WHERE w.UserID = ?
+                           ORDER BY w.WorkoutDate DESC, w.WorkoutID DESC";
+
+            DataTable dt = DatabaseHelper.ExecuteQueryTable(sql, p => p.AddWithValue("?", userId));
+
+            foreach (DataRow row in dt.Rows)
+            {
+                string exName = row["ExerciseName"].ToString();
+                int val = Convert.ToInt32(row["ResultValue"]);
+
+                list.Add(new WorkoutHistoryItem
+                {
+                    ExerciseName = exName,
+                    ResultValue = val,
+                    ResultDisplay = exName.Equals("Plank", StringComparison.OrdinalIgnoreCase)
+                                    ? $"{val}s"
+                                    : $"{val} reps",
+                    ResultNote = row["ResultNote"]?.ToString() ?? "",
+                    NoteIsGood = Convert.ToBoolean(row["NoteIsGood"]),
+                    TrackingQuality = Convert.ToInt32(row["TrackingQuality"]),
+                    WorkoutDate = Convert.ToDateTime(row["WorkoutDate"])
+                });
+            }
+
+            return list;
+        }
     }
 }
 
@@ -2675,8 +3174,6 @@ namespace FitnessTrackerProject
                                     <TextBlock x:Name="txtProgramName" FontSize="18" FontWeight="SemiBold" Foreground="#111827"/>
                                     <TextBlock x:Name="txtProgramInfo" FontSize="13" Foreground="#6B7280"/>
                                 </StackPanel>
-                                <Button Content="Delete program" Style="{StaticResource DangerButton}"
-                                        HorizontalAlignment="Right" VerticalAlignment="Top" Click="DeleteProgram_Click"/>
                             </Grid>
 
                             <ScrollViewer MaxHeight="460" VerticalScrollBarVisibility="Auto">
@@ -2705,6 +3202,12 @@ namespace FitnessTrackerProject
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </ScrollViewer>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                                <Button Content="Edit program" Style="{StaticResource PrimaryButton}" Height="32" Padding="14,0"
+            Margin="0,0,8,0" Click="EditProgram_Click"/>
+                                <Button Content="Delete program" Style="{StaticResource DangerButton}"
+            Click="DeleteProgram_Click"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -2752,13 +3255,22 @@ namespace FitnessTrackerProject
         private readonly int _coachId;
 
         public event EventHandler CreateRequested;   // the host switches to the "Create program" tab
+        private CoachStudioUserControl _parentStudio;
 
-        public CoachProgramsUserControl() : this(0) { }
+        public CoachProgramsUserControl() { }
 
-        public CoachProgramsUserControl(int coachId)
+        public CoachProgramsUserControl(int coachId, CoachStudioUserControl parentStudio)
         {
             InitializeComponent();
             _coachId = coachId;
+            _parentStudio = parentStudio;
+        }
+        private void EditProgram_Click(object sender, RoutedEventArgs e)
+        {
+            var program = lstPrograms.SelectedItem as ProgramItem;
+            if (program == null) return;
+
+            _parentStudio.OpenEditTab(program.Id); // Direct call!
         }
         /// <summary>Reads this coach's programs from the database and shows them.</summary>
         public void Reload()
@@ -3005,7 +3517,6 @@ namespace FitnessTrackerProject
     /// <summary>Coach Studio: a tab bar and a frame that shows "My programs" or "Create program".</summary>
     public partial class CoachStudioUserControl : UserControl
     {
-        // Each screen is created once, so a half-built program isn't lost when switching tabs
         private readonly CoachProgramsUserControl _programs;
         private readonly CreateProgramUserControl _create;
 
@@ -3015,30 +3526,32 @@ namespace FitnessTrackerProject
         {
             InitializeComponent();
 
-            _programs = new CoachProgramsUserControl(coachId);
-            _create = new CreateProgramUserControl(coachId);
+            _programs = new CoachProgramsUserControl(coachId, this);
+            _create = new CreateProgramUserControl(coachId, this);
 
-            _programs.CreateRequested += (s, e) => ShowCreate();   // button shown when the list is empty
-            _create.ProgramSaved += (s, e) => ShowPrograms();      // after saving, go to the list
-
-            ShowPrograms();
+            OpenProgramsTab();
         }
 
-        private void ShowPrograms()
+        public void OpenProgramsTab()
         {
             tabPrograms.IsChecked = true;
-            _programs.Reload();                    // read the database again, so a new program appears
+            _programs.Reload();
             if (coachFrame.Content != _programs) coachFrame.Navigate(_programs);
         }
 
-        private void ShowCreate()
+        public void OpenEditTab(int programId)
+        {
+            tabCreate.IsChecked = true;
+            _create.LoadProgramForEdit(programId);
+            if (coachFrame.Content != _create) coachFrame.Navigate(_create);
+        }
+
+        private void TabPrograms_Click(object sender, RoutedEventArgs e) { OpenProgramsTab(); }
+        private void TabCreate_Click(object sender, RoutedEventArgs e)
         {
             tabCreate.IsChecked = true;
             if (coachFrame.Content != _create) coachFrame.Navigate(_create);
         }
-
-        private void TabPrograms_Click(object sender, RoutedEventArgs e) { ShowPrograms(); }
-        private void TabCreate_Click(object sender, RoutedEventArgs e) { ShowCreate(); }
     }
 }
 
@@ -3454,7 +3967,9 @@ namespace FitnessTrackerProject
 using FitnessTrackerProject.Scripts;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -3488,10 +4003,13 @@ namespace FitnessTrackerProject
         public CreateProgramUserControl() { }
         private int _coachId;
         public event EventHandler ProgramSaved;
-        public CreateProgramUserControl(int coachId)
+        private CoachStudioUserControl _parentStudio;
+        private int? _editingProgramId = null;
+        public CreateProgramUserControl(int coachId, CoachStudioUserControl parentStudio)
         {
             InitializeComponent();
             _coachId = coachId;
+            _parentStudio = parentStudio;
             LoadLibrary();
             lstDays.ItemsSource = _days;
             AddDay_Click(null, null);
@@ -3637,26 +4155,98 @@ namespace FitnessTrackerProject
                 MessageBox.Show("Every exercise needs sets, reps and rest (up to 20 characters each).");
                 return;
             }
-
-            string goal = ((ComboBoxItem)cmbGoal.SelectedItem).Content.ToString();
-            string level = ((ComboBoxItem)cmbLevel.SelectedItem).Content.ToString();
-
+            string goal = ((ComboBoxItem)cmbGoal.SelectedItem)?.Content?.ToString() ?? "";
+            string level = ((ComboBoxItem)cmbLevel.SelectedItem)?.Content?.ToString() ?? "";
             try
             {
-                ProgramRepository.SaveProgram(_coachId, name, goal, level, _days);
-                MessageBox.Show("Program saved!", "Coach Studio");
+                if (_editingProgramId.HasValue)
+                {
+                    ProgramRepository.UpdateProgram(_editingProgramId.Value, _coachId, name, goal, level, _days);
+                    MessageBox.Show("Program updated successfully!", "Coach Studio");
+                }
+                else
+                {
+                    ProgramRepository.SaveProgram(_coachId, name, goal, level, _days);
+                    MessageBox.Show("Program saved!", "Coach Studio");
+                }
+
                 ResetScreen();
-                ProgramSaved?.Invoke(this, EventArgs.Empty);
+                if(_parentStudio!=null)
+                    _parentStudio.OpenProgramsTab(); // Direct method call to switch tab!
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Could not save the program: " + ex.Message, "Coach Studio");
             }
         }
+        public void LoadProgramForEdit(int programId)
+        {
+            _editingProgramId = programId;
 
+            // 1. Load Program info
+            DataTable dtProg = DatabaseHelper.ExecuteQueryTable(
+                "SELECT ProgramName, Goal, ProgramLevel FROM ProgramsTable WHERE ProgramID = ?",
+                p => p.AddWithValue("?", programId));
+
+            if (dtProg.Rows.Count == 0) return;
+
+            txtProgramName.Text = dtProg.Rows[0]["ProgramName"].ToString();
+            string goal = dtProg.Rows[0]["Goal"]?.ToString();
+            string level = dtProg.Rows[0]["ProgramLevel"]?.ToString();
+
+            foreach (ComboBoxItem item in cmbGoal.Items)
+                if (item.Content.ToString() == goal) cmbGoal.SelectedItem = item;
+
+            foreach (ComboBoxItem item in cmbLevel.Items)
+                if (item.Content.ToString() == level) cmbLevel.SelectedItem = item;
+
+            // 2. Load Days & Exercises
+            _days.Clear();
+
+            DataTable dtDays = DatabaseHelper.ExecuteQueryTable(
+                "SELECT DayID, DayNumber, DayFocus FROM ProgramDaysTable WHERE ProgramID = ? ORDER BY DayNumber",
+                p => p.AddWithValue("?", programId));
+
+            foreach (DataRow dayRow in dtDays.Rows)
+            {
+                int dayId = Convert.ToInt32(dayRow["DayID"]);
+                CoachDay day = new CoachDay
+                {
+                    Title = "Day " + dayRow["DayNumber"],
+                    Focus = dayRow["DayFocus"]?.ToString() ?? ""
+                };
+
+                DataTable dtEx = DatabaseHelper.ExecuteQueryTable(
+                    "SELECT e.ExerciseID, x.ExerciseName, x.TargetMuscle, e.Sets, e.Reps, e.RestTime " +
+                    "FROM ProgramExercisesTable AS e " +
+                    "INNER JOIN ExercisesTable AS x ON e.ExerciseID = x.ExerciseID " +
+                    "WHERE e.DayID = ? ORDER BY e.SortOrder",
+                    p => p.AddWithValue("?", dayId));
+
+                foreach (DataRow exRow in dtEx.Rows)
+                {
+                    day.Exercises.Add(new CoachExercise
+                    {
+                        ExerciseId = Convert.ToInt32(exRow["ExerciseID"]),
+                        Name = exRow["ExerciseName"].ToString(),
+                        Muscle = exRow["TargetMuscle"].ToString(),
+                        Sets = exRow["Sets"].ToString(),
+                        Reps = exRow["Reps"].ToString(),
+                        Rest = exRow["RestTime"].ToString()
+                    });
+                }
+
+                _days.Add(day);
+            }
+
+            lstDays.Items.Refresh();
+            if (_days.Count > 0) lstDays.SelectedIndex = 0;
+            RefreshSummary();
+        }
         /// <summary>Empty screen, ready for the next program (so pressing Save twice doesn't create a copy).</summary>
         private void ResetScreen()
         {
+            _editingProgramId = null;
             txtProgramName.Text = "";
             _days.Clear();
             lstDays.Items.Refresh();
@@ -3789,7 +4379,8 @@ namespace FitnessTrackerProject
         <!-- One program (with the picture of its trainer) -->
         <DataTemplate x:Key="ProgramCard">
             <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
-                    CornerRadius="10" Padding="12" Margin="0,0,0,8">
+            CornerRadius="10" Padding="12" Margin="0,0,0,8" Cursor="Hand"
+            Tag="{Binding Id}" MouseLeftButtonUp="ProgramCard_Click">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -3800,7 +4391,7 @@ namespace FitnessTrackerProject
                     <Grid Grid.Column="0" Width="56" Height="56" Margin="0,0,14,0" VerticalAlignment="Top">
                         <Ellipse Fill="#DBEAFE"/>
                         <TextBlock Text="{Binding Initial}" FontSize="22" FontWeight="Bold" Foreground="#1D4ED8"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <Ellipse>
                             <Ellipse.Fill>
                                 <ImageBrush ImageSource="{Binding Picture}" Stretch="UniformToFill"/>
@@ -3814,14 +4405,17 @@ namespace FitnessTrackerProject
                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                             <TextBlock Text="by " FontSize="12" Foreground="#6B7280"/>
                             <TextBlock Text="{Binding CoachName}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="#374151"/>
+                               Foreground="#374151"/>
                         </StackPanel>
                         <TextBlock Text="{Binding Stats}" FontSize="12" Foreground="#9CA3AF" Margin="0,4,0,0"/>
+
+                        <!-- Visual hint for the trainee -->
+                        <TextBlock Text="Click to view days &amp; exercises &#x203A;" FontSize="11" Foreground="#2563EB" Margin="0,4,0,0"/>
                     </StackPanel>
 
                     <Button Grid.Column="2" Content="{Binding ButtonText}" Tag="{Binding Id}"
-                            Click="ChooseProgram_Click"
-                            VerticalAlignment="Center" Margin="14,0,0,0">
+                    Click="ChooseProgram_Click"
+                    VerticalAlignment="Center" Margin="14,0,0,0">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource ChooseButton}">
                                 <Style.Triggers>
@@ -3835,7 +4429,6 @@ namespace FitnessTrackerProject
                 </Grid>
             </Border>
         </DataTemplate>
-
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -3915,6 +4508,8 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Navigation;
 
 namespace FitnessTrackerProject
 {
@@ -4025,6 +4620,20 @@ namespace FitnessTrackerProject
             }
 
             LoadLists();
+        }
+        private void ProgramCard_Click(object sender, MouseButtonEventArgs e)
+        {
+            Border card = sender as Border;
+            if (card != null && card.Tag != null)
+            {
+                int programId = Convert.ToInt32(card.Tag);
+                NavigationService navigation = NavigationService.GetNavigationService(this);
+                if (navigation != null)
+                {
+                    // Open the detail page showing all days, exercises, sets, and reps
+                    navigation.Navigate(new ProgramDetailUserControl(_traineeId, programId));
+                }
+            }
         }
     }
 }
@@ -4282,32 +4891,18 @@ using System.Windows.Controls;
 
 namespace FitnessTrackerProject
 {
-    /// <summary>
-    /// The window only connects the pieces together:
-    ///   PoseEstimator = the AI model        BoxTracker   = follows the person
-    ///   SquatCounter  = counts squats       PlankChecker = checks plank form and time
-    ///   PoseDrawer    = draws on the video
-    /// </summary>
     public partial class MainWindow : System.Windows.Window
     {
         private const string ModelPath = "pose_estimation_mediapipe_2023mar.onnx";
         private const string AnalysisWindowName = "Analyzing...";
-        private const string PlaybackWindowName = "Pose Estimation (Calibrated)";
-
-        private const bool ShowTrackingBox = true;   // only used by the playback: cyan box = tracking, red = lost frame
-
-        // The second "review" playback (skeleton + counters + box). Off for now.
-        // It is a normal field (not const) so it can be connected to a checkbox or setting later.
-        private bool ShowPlayback = false;
 
         private PoseEstimator _estimator;
-        private double _videoFps = 30.0;             // remembered from pass 1, used for the plank timer
-        private const string LiveWindowName = "Live Camera";
-        private const double CalibrationSeconds = 8.0;
-        DistanceStatus distance;
+        private double _videoFps = 30.0;
         private int currentUserId;
         private bool IsCoach;
+
         public MainWindow() { }
+
         public MainWindow(int userId)
         {
             InitializeComponent();
@@ -4318,6 +4913,7 @@ namespace FitnessTrackerProject
             MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
             LoadModel();
         }
+
         private bool CheckIsCoach()
         {
             try
@@ -4326,16 +4922,16 @@ namespace FitnessTrackerProject
                     "SELECT UserRole FROM Users WHERE ID = ?",
                     p => p.AddWithValue("?", currentUserId));
 
-                // role is null if there is no such user, and DBNull if the cell is empty
                 return role != null && role != DBNull.Value &&
                        string.Equals(role.ToString().Trim(), "Coach", StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Could not check your role: " + ex.Message);
-                return false;   // if we can't tell, don't let them in
+                return false;
             }
         }
+
         private void LoadModel()
         {
             try
@@ -4347,197 +4943,217 @@ namespace FitnessTrackerProject
                 MessageBox.Show($"Model did not load correctly: {ex.Message}");
             }
         }
+
         public void ProcessVideo(string video, ExerciseModel exercise)
         {
-            if (_estimator == null)
+            if (_estimator == null) return;
+
+            this.Cursor = System.Windows.Input.Cursors.Wait;
+            bool isHorizontal = exercise != null && exercise.IsHorizontal;
+
+            // 1. SILENT SCAN: Let the AI run through the video in the background
+            List<FrameResult> frames = SilentAnalyze(video, isHorizontal);
+
+            this.Cursor = System.Windows.Input.Cursors.Arrow;
+
+            if (frames == null || frames.Count == 0) return;
+
+            // 2. DETECT: Find the right exercise, but grab a FRESH counter so it starts at 0
+            double detectScore;
+            IExerciseCounter detected = ExerciseRegistry.Detect(frames, out detectScore);
+
+            // ADD THIS TEMPORARY LINE:
+            MessageBox.Show("Scores: " + ExerciseRegistry.LastScores + "\nDetected: " + (detected?.Name ?? "Nothing"));
+            string finalName = detected != null ? detected.Name : (exercise != null ? exercise.Name : "Squat");
+            IExerciseCounter counter = ExerciseRegistry.Create(finalName) ?? new SquatCounter();
+
+            // 3. CALIBRATE: Give the clean counter your body's range of motion
+            if (counter is SquatCounter sq) sq.Calibrate(frames);
+            else if (counter is PushUpCounter pu) pu.Calibrate(frames);
+            else if (counter is PullUpCounter pl) pl.Calibrate(frames);
+
+            // 4. VISIBLE PLAYBACK: Play the video, update the clean counter live
+            PlayVisiblePreview(video, frames, counter);
+
+            // 5. SAVE TO DB
+            int finalValue = GetCounterValue(counter, _videoFps);
+            string note = finalValue > 0 ? "Great workout!" : "Completed";
+            bool noteIsGood = finalValue > 0;
+
+            int trustedFrames = 0;
+            foreach (var f in frames)
             {
-                MessageBox.Show("Cannot process video. AI model failed to load.");
-                return;
+                if (f.State == TrackState.Tracking && f.Distance != DistanceStatus.TooClose)
+                    trustedFrames++;
             }
+            int quality = frames.Count > 0 ? (int)((trustedFrames / (float)frames.Count) * 100) : 100;
 
-            // Plank and push-ups are horizontal exercises: the image is rotated before the AI sees it
-
-            bool isHorizontal = exercise.IsHorizontal;
-
-            // PASS 1: run the AI on every frame and remember the results (ESC cancels)
-            List<FrameResult> frames = AnalyzeVideo(video, isHorizontal);
-            if (frames == null) return;   // cancelled or could not open the video
-
-            if (frames.Count == 0)
+            if (currentUserId > 0)
             {
-                MessageBox.Show("Could not read any frames from this video.");
-                return;
-            }
-
-            // Calibrate on this person's own movement
-            var squats = new SquatCounter();
-            var plank = new PlankChecker();
-            var pushUps = new PushUpCounter();
-            var pullUps = new PullUpCounter();
-
-            if (exercise.Name == "Squat") squats.Calibrate(frames);
-            if (exercise.Name == "Pushup") pushUps.Calibrate(frames);
-
-            if (ShowPlayback && video != null)
-                PlayBack(video, frames, exercise, squats, plank, pushUps,pullUps);
-            else
-                ShowSummary(frames, exercise, squats, plank, pushUps, pullUps);
-        }
-
-        /// <summary>No playback: let the counter do its work on the saved frames and show the result.</summary>
-        private void ShowSummary(List<FrameResult> frames, ExerciseModel exercise,
-                                 SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
-        {
-            foreach (FrameResult result in frames)
-            {
-                if (result.State == TrackState.Lost || result.Distance == DistanceStatus.TooClose) continue;   // don't count frames we can't trust
-                switch (exercise.Name)
+                try
                 {
-                    case "Plank": plank.Update(result.Keypoints); break;
-                    case "Pushup": pushUps.Update(result.Keypoints); break;
-                    case "Pullup": pullUps.Update(result.Keypoints); break;
-                    default: squats.Update(result.Keypoints); break;
+                    ExerciseModel matchedModel = ExercisePool.GetByName(counter.Name) ?? exercise;
+                    int exerciseId = matchedModel != null ? matchedModel.Id : 1;
+
+                    WorkoutRepository.SaveWorkout(currentUserId, exerciseId, finalValue, note, noteIsGood, quality);
+                    MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Could not save workout: " + ex.Message);
                 }
             }
-
-            string message;
-            switch (exercise.Name)
-            {
-                case "Plank": message = $"Plank hold time: {plank.HoldSeconds(_videoFps)} seconds"; break;
-                case "Pushup": message = $"Push-ups counted: {pushUps.Count}"; break;
-                case "Pullup": message = $"Pull-ups counted: {pullUps.Count}"; break;
-                default: message = $"Squats counted: {squats.Count}"; break;
-            }
-
-            MessageBox.Show(message, "Result", MessageBoxButton.OK, MessageBoxImage.Information);
         }
-
-        /// <summary>Pass 2: show the video with the skeleton and the exercise info.</summary>
-        private void PlayBack(string video, List<FrameResult> frames, ExerciseModel exercise,
-                              SquatCounter squats, PlankChecker plank, PushUpCounter pushUps, PullUpCounter pullUps)
+        private List<FrameResult> SilentAnalyze(string video, bool isPlankMode)
         {
-            using (var capture = new VideoCapture(video))
+            var results = new List<FrameResult>();
+            bool isLive = string.IsNullOrEmpty(video);
+
+            _estimator.StartVideo(isPlankMode);
+
+            using (var capture = isLive ? new VideoCapture(0, VideoCaptureAPIs.DSHOW) : new VideoCapture(video))
+            {
+                if (!capture.IsOpened()) return null;
+
+                if (!isLive) _videoFps = capture.Fps > 1 ? capture.Fps : 30.0;
+                BoxTracker tracker = null;
+
+                using (var frame = new Mat())
+                {
+                    while (capture.Read(frame) && !frame.Empty())
+                    {
+                        if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
+                        if (tracker == null) tracker = new BoxTracker(frame.Cols, frame.Rows);
+
+                        BoundingBox boxUsed = isPlankMode ? BoundingBox.FullFrame(frame.Cols, frame.Rows) : tracker.Box;
+                        List<Keypoint> keypoints = _estimator.Estimate(frame, boxUsed);
+
+                        if (tracker.ReacquiredThisFrame) _estimator.ResetSmoothing();
+
+                        DistanceStatus distance = DistanceChecker.Update(keypoints, _estimator.Confidence, frame.Rows);
+                        TrackState state = isPlankMode ? TrackState.Tracking : tracker.Update(keypoints, _estimator.Confidence);
+
+                        results.Add(new FrameResult
+                        {
+                            Keypoints = keypoints,
+                            Box = boxUsed,
+                            State = state,
+                            Distance = distance
+                        });
+
+                        // If testing a live camera, only sample 3 seconds to avoid freezing forever
+                        if (isLive && results.Count > 90) break;
+                    }
+                }
+            }
+            return results;
+        }
+        private void PlayVisiblePreview(string video, List<FrameResult> frames, IExerciseCounter counter)
+        {
+            bool isLive = string.IsNullOrEmpty(video);
+
+            using (var capture = isLive ? new VideoCapture(0, VideoCaptureAPIs.DSHOW) : new VideoCapture(video))
             {
                 if (!capture.IsOpened()) return;
 
-                double fps = capture.Fps > 1 ? capture.Fps : 30.0;
-                int delay = Math.Max(1, (int)(1000.0 / fps));
+                // Play at the normal speed of the video
+                int delay = isLive ? 1 : Math.Max(1, (int)(1000.0 / _videoFps));
 
-                Cv2.NamedWindow(PlaybackWindowName, WindowFlags.Normal);
-                Cv2.ResizeWindow(PlaybackWindowName, 960, 540);
+                Cv2.NamedWindow(AnalysisWindowName, WindowFlags.Normal);
+                Cv2.ResizeWindow(AnalysisWindowName, 640, 360);
 
                 using (var frame = new Mat())
                 {
                     int frameIndex = 0;
                     while (capture.Read(frame) && !frame.Empty() && frameIndex < frames.Count)
                     {
-                        FrameResult result = frames[frameIndex];
+                        if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
 
-                        PoseDrawer.DrawSkeleton(frame, result.Keypoints);
-
-                        if (ShowTrackingBox && result.State != TrackState.Searching)
-                        {
-                            Scalar boxColor = result.State == TrackState.Tracking ? Scalar.Cyan : Scalar.Red;
-                            PoseDrawer.DrawBox(frame, result.Box, boxColor);
-                        }
-
-                        if (result.State == TrackState.Lost)
-                        {
-                            // The tracker doesn't trust this frame, so we don't count anything on it.
-                            PoseDrawer.PutText(frame, "Tracking lost...", 50, 1.2, Scalar.Red, 3);
-                        }
-                        else if (exercise.Name == "Plank")
-                        {
-                            ShowPlank(frame, result.Keypoints, plank, fps);
-                        }
-                        else if (exercise.Name == "Pushup")
-                        {
-                            ShowPushUps(frame, result.Keypoints, pushUps);
-                        }
-                        else if (exercise.Name == "Pullup")
-                        {
-                            ShowPullUps(frame, result.Keypoints, pullUps);
-                        }
-                        else
-                        {
-                            ShowSquats(frame, result.Keypoints, squats);
-                        }
-
-                        using (Mat display = PoseDrawer.ResizeForDisplay(frame, 960, 540))
-                        {
-                            Cv2.ImShow(PlaybackWindowName, display);
-                        }
-
-                        if (Cv2.WaitKey(delay) == 27) break;   // ESC = stop
+                        FrameResult res = frames[frameIndex];
                         frameIndex++;
+
+                        // Trigger the live counter!
+                        if (res.State != TrackState.Lost && res.Distance != DistanceStatus.TooClose)
+                        {
+                            counter.Update(res.Keypoints);
+                        }
+
+                        int currentVal = GetCounterValue(counter, _videoFps);
+                        string counterText = counter.Name == "Plank"
+                            ? $"{counter.Name} - {currentVal}s"
+                            : $"{counter.Name} - {currentVal}";
+
+                        PoseDrawer.DrawSkeleton(frame, res.Keypoints);
+
+                        if (res.Distance == DistanceStatus.TooClose)
+                        {
+                            PoseDrawer.PutText(frame, "Too close - step back", 95, 0.8, Scalar.Red, 2);
+                        }
+
+                        PoseDrawer.PutText(frame, counterText, 45, 1.3, Scalar.Yellow, 3);
+
+                        using (Mat display = PoseDrawer.ResizeForDisplay(frame, 640, 360))
+                        {
+                            Cv2.ImShow(AnalysisWindowName, display);
+                        }
+
+                        if (Cv2.WaitKey(delay) == 27) break; // ESC stops playback
                     }
                 }
             }
-            Cv2.DestroyAllWindows();
+            Cv2.DestroyWindow(AnalysisWindowName);
         }
-        private void ShowSquats(Mat frame, List<Keypoint> keypoints, SquatCounter squats)
+        private List<FrameResult> AnalyzeVideoQuick(string video, bool isPlankMode)
         {
-            squats.Update(keypoints);
+            var results = new List<FrameResult>();
+            bool isLive = (video == null);
 
-            string ratioText = squats.LastRatio.HasValue
-                ? $"Dynamic Ratio: {Math.Round(squats.LastRatio.Value, 2)}"
-                : "Legs not visible";
+            _estimator.StartVideo(isPlankMode);
 
-            PoseDrawer.PutText(frame, $"Squats: {squats.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, ratioText, 100, 1, Scalar.LimeGreen, 2);
-            PoseDrawer.PutText(frame, $"State: {squats.State}", 140, 1, Scalar.Cyan, 2);
-        }
-
-        private void ShowPushUps(Mat frame, List<Keypoint> keypoints, PushUpCounter pushUps)
-        {
-            pushUps.Update(keypoints);
-
-            string angleText = pushUps.LastAngle.HasValue
-                ? $"Elbow angle: {Math.Round(pushUps.LastAngle.Value)}"
-                : "Get into push-up position";
-
-            PoseDrawer.PutText(frame, $"Push-ups: {pushUps.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, angleText, 100, 1, Scalar.LimeGreen, 2);
-            PoseDrawer.PutText(frame, $"State: {pushUps.State}", 140, 1, Scalar.Cyan, 2);
-        }
-
-        private void ShowPullUps(Mat frame, List<Keypoint> keypoints, PullUpCounter pullUps)
-        {
-            pullUps.Update(keypoints);
-
-            string angleText = pullUps.LastAngle.HasValue
-                ? $"Elbow angle: {Math.Round(pullUps.LastAngle.Value)}"
-                : "Get into push-up position";
-
-            PoseDrawer.PutText(frame, $"Push-ups: {pullUps.Count}", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, angleText, 100, 1, Scalar.LimeGreen, 2);
-            PoseDrawer.PutText(frame, $"State: {pullUps.State}", 140, 1, Scalar.Cyan, 2);
-        }
-        private void ShowPlank(Mat frame, List<Keypoint> keypoints, PlankChecker plank, double fps)
-        {
-            plank.Update(keypoints);
-
-            string message;
-            switch (plank.Status)
+            using (var capture = isLive ? new VideoCapture(0, VideoCaptureAPIs.DSHOW) : new VideoCapture(video))
             {
-                case PlankStatus.Good: message = "Good Form!"; break;
-                case PlankStatus.HipsTooLow: message = "Hips too low!"; break;
-                case PlankStatus.HipsTooHigh: message = "Hips too high!"; break;
-                default: message = "Get into plank position"; break;
+                if (!capture.IsOpened()) return null;
+
+                BoxTracker tracker = null;
+                using (var frame = new Mat())
+                {
+                    while (capture.Read(frame) && !frame.Empty())
+                    {
+                        if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
+                        if (tracker == null) tracker = new BoxTracker(frame.Cols, frame.Rows);
+
+                        BoundingBox boxUsed = isPlankMode ? BoundingBox.FullFrame(frame.Cols, frame.Rows) : tracker.Box;
+                        List<Keypoint> keypoints = _estimator.Estimate(frame, boxUsed);
+
+                        if (tracker.ReacquiredThisFrame) _estimator.ResetSmoothing();
+
+                        DistanceStatus distance = DistanceChecker.Update(keypoints, _estimator.Confidence, frame.Rows);
+                        TrackState state = isPlankMode ? TrackState.Tracking : tracker.Update(keypoints, _estimator.Confidence);
+
+                        results.Add(new FrameResult
+                        {
+                            Keypoints = keypoints,
+                            Box = boxUsed,
+                            State = state,
+                            Distance = distance
+                        });
+
+                        if (isLive && results.Count > 60) break; // For live camera, sample first 60 frames for detection
+                    }
+                }
             }
-
-            Scalar color = plank.IsGoodForm ? Scalar.LimeGreen : Scalar.Red;
-
-            PoseDrawer.PutText(frame, $"Plank Time: {plank.HoldSeconds(fps)}s", 50, 1.5, Scalar.Yellow, 3);
-            PoseDrawer.PutText(frame, message, 100, 1, color, 2);
+            return results;
+        }
+        private int GetCounterValue(IExerciseCounter counter, double fps)
+        {
+            if (counter is PlankChecker pk) return pk.HoldSeconds(fps);
+            if (counter is SquatCounter sq) return sq.Count;
+            if (counter is PushUpCounter pu) return pu.Count;
+            if (counter is PullUpCounter pl) return pl.Count;
+            return 0;
         }
 
-        /// <summary>Turns the counters into one result (not used yet, ready for when you save workouts).</summary>
-        /// <summary>
-        /// Pass 1: runs the AI on every frame and remembers the results.
-        /// video = path to a file, or null to use the live camera (ESC = finish).
-        /// </summary>
-        private List<FrameResult> AnalyzeVideo(string video, bool isPlankMode)
+        private List<FrameResult> AnalyzeVideo(string video, bool isPlankMode, IExerciseCounter counter)
         {
             var results = new List<FrameResult>();
             bool cancelled = false;
@@ -4553,10 +5169,7 @@ namespace FitnessTrackerProject
                     return null;
                 }
 
-                // A camera has no real frame count, so 0 = "unknown" (the preview handles that)
                 int totalFrames = isLive ? 0 : capture.FrameCount;
-
-                // A file knows its own fps. A camera doesn't, so it is measured after the loop.
                 if (!isLive) _videoFps = capture.Fps > 1 ? capture.Fps : 30.0;
 
                 BoxTracker tracker = null;
@@ -4570,99 +5183,125 @@ namespace FitnessTrackerProject
                     int frameNumber = 0;
                     DistanceChecker.Reset();
 
+                    // PASS 1: Collect all frames and keypoints (just like before)
                     while (capture.Read(frame) && !frame.Empty())
                     {
                         frameNumber++;
-
-                        // Mirror the camera image, like looking in a mirror
                         if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
 
-                        // The tracker needs the frame size, so we create it on the first frame.
                         if (tracker == null) tracker = new BoxTracker(frame.Cols, frame.Rows);
-
-                        BoundingBox boxUsed = tracker.Box;
+                        BoundingBox boxUsed = isPlankMode
+                            ? BoundingBox.FullFrame(frame.Cols, frame.Rows)
+                            : tracker.Box;
 
                         List<Keypoint> keypoints = _estimator.Estimate(frame, boxUsed);
 
-                        // If the tracker gave up and starts searching again, old keypoints must not influence the smoothing.
                         if (tracker.ReacquiredThisFrame) _estimator.ResetSmoothing();
 
-                        // Distance check on EVERY frame (it needs consecutive frames to measure jitter)
                         DistanceStatus distance = DistanceChecker.Update(keypoints, _estimator.Confidence, frame.Rows);
+                        TrackState state = isPlankMode ? TrackState.Tracking : tracker.Update(keypoints, _estimator.Confidence);
 
-                        if (isPlankMode)
+                        results.Add(new FrameResult
                         {
-                            results.Add(new FrameResult { Keypoints = keypoints, Box = BoundingBox.FullFrame(frame.Cols, frame.Rows), State = TrackState.Tracking, Distance = distance });
-                        }
-                        else
+                            Keypoints = keypoints,
+                            Box = boxUsed,
+                            State = state,
+                            Distance = distance
+                        });
+                    }
+
+                    if (isLive && frameNumber > 0)
+                        _videoFps = frameNumber / Math.Max(0.001, clock.Elapsed.TotalSeconds);
+                }
+            }
+
+            // 1. CALIBRATE: Give the frames to the counter so it learns your exact range of motion (Fixes the missing reps!)
+            if (counter is SquatCounter sq) sq.Calibrate(results);
+            else if (counter is PushUpCounter pu) pu.Calibrate(results);
+            else if (counter is PullUpCounter pl) pl.Calibrate(results);
+
+            // 2. PLAYBACK PREVIEW WITH LIVE COUNTER: Replay the saved frames smoothly with the calibrated counter
+            using (var capture = isLive ? new VideoCapture(0, VideoCaptureAPIs.DSHOW) : new VideoCapture(video))
+            {
+                if (!capture.IsOpened()) return results;
+
+                using (var frame = new Mat())
+                {
+                    int frameIndex = 0;
+                    while (capture.Read(frame) && !frame.Empty() && frameIndex < results.Count)
+                    {
+                        FrameResult res = results[frameIndex];
+                        frameIndex++;
+
+                        if (isLive) Cv2.Flip(frame, frame, FlipMode.Y);
+
+                        // Update counter using trusted frames
+                        if (res.State != TrackState.Lost && res.Distance != DistanceStatus.TooClose)
                         {
-                            TrackState state = tracker.Update(keypoints, _estimator.Confidence);
-                            results.Add(new FrameResult { Keypoints = keypoints, Box = boxUsed, State = state, Distance = distance });
+                            counter.Update(res.Keypoints);
                         }
 
-                        // Live preview (every 2nd frame is enough).
-                        // ESC on a file = cancel everything. ESC on the camera = "I'm done", keep what was recorded.
-                        if (frameNumber % 2 == 0 && !ShowAnalysisPreview(frame, keypoints, distance, frameNumber, totalFrames))
+                        int currentVal = GetCounterValue(counter, _videoFps);
+                        string counterText = counter.Name == "Plank"
+                            ? $"{counter.Name} - {currentVal}s"
+                            : $"{counter.Name} - {currentVal}";
+
+                        PoseDrawer.DrawSkeleton(frame, res.Keypoints);
+
+                        if (res.Distance == DistanceStatus.TooClose)
                         {
-                            if (!isLive) cancelled = true;
+                            PoseDrawer.PutText(frame, "Too close - step back", 95, 0.8, Scalar.Red, 2);
+                        }
+
+                        PoseDrawer.PutText(frame, counterText, 45, 1.3, Scalar.Yellow, 3);
+
+                        using (Mat display = PoseDrawer.ResizeForDisplay(frame, 640, 360))
+                        {
+                            Cv2.ImShow(AnalysisWindowName, display);
+                        }
+
+                        if (Cv2.WaitKey(1) == 27)
+                        {
+                            cancelled = true;
                             break;
                         }
                     }
-
-                    // Camera: fps = frames processed / seconds passed (used by the plank timer)
-                    if (isLive && frameNumber > 0)
-                        _videoFps = frameNumber / Math.Max(0.001, clock.Elapsed.TotalSeconds);
                 }
             }
 
             Cv2.DestroyWindow(AnalysisWindowName);
             return cancelled ? null : results;
         }
-
-        private bool ShowAnalysisPreview(Mat frame, List<Keypoint> keypoints, DistanceStatus status,
-                                         int frameNumber, int totalFrames)
+        private bool ShowAnalysisPreview(Mat frame, List<Keypoint> keypoints, DistanceStatus distance,
+                                         int frameNumber, int totalFrames, string counterText)
         {
-            using (var preview = frame.Clone())
+            PoseDrawer.DrawSkeleton(frame, keypoints);
+
+            if (distance == DistanceStatus.TooClose)
             {
-                PoseDrawer.DrawSkeleton(preview, keypoints);
-
-                using (Mat small = PoseDrawer.ResizeForDisplay(preview, 640, 360))
-                {
-                    string guidance;
-                    Scalar color;
-                    if (status == DistanceStatus.TooClose)
-                    {
-                        guidance = "Too close - step back";
-                        color = Scalar.Red;
-                    }
-                    else
-                    {
-                        guidance = "Good tracking!";
-                        color = Scalar.LimeGreen;
-                    }
-
-                    string progress = totalFrames > 0
-                        ? $"Analyzing {frameNumber}/{totalFrames}  (ESC = cancel)"
-                        : $"Analyzing {frameNumber}  (ESC = cancel)";
-
-                    Cv2.PutText(small, progress, new OpenCvSharp.Point(10, 25),
-                        HersheyFonts.HersheySimplex, 0.5, Scalar.White, 1);
-                    Cv2.PutText(small, guidance, new OpenCvSharp.Point(10, 60),
-                        HersheyFonts.HersheySimplex, 0.8, color, 2);
-
-                    // Temporary, for tuning thresholds. Remove when done.
-                    Cv2.PutText(small, DistanceChecker.DebugInfo, new OpenCvSharp.Point(10, 90),
-                        HersheyFonts.HersheySimplex, 0.45, Scalar.Yellow, 1);
-
-                    Cv2.ImShow(AnalysisWindowName, small);
-                    return Cv2.WaitKey(1) != 27;
-                }
+                PoseDrawer.PutText(frame, "Too close - step back", 95, 0.8, Scalar.Red, 2);
             }
+
+            // Live rep counter on top-left
+            PoseDrawer.PutText(frame, counterText, 45, 1.3, Scalar.Yellow, 3);
+
+            if (totalFrames > 0)
+            {
+                string progressText = $"Frame {frameNumber}/{totalFrames}";
+                PoseDrawer.PutText(frame, progressText, frame.Rows - 20, 0.6, Scalar.White, 1);
+            }
+
+            using (Mat display = PoseDrawer.ResizeForDisplay(frame, 640, 360))
+            {
+                Cv2.ImShow(AnalysisWindowName, display);
+            }
+
+            return Cv2.WaitKey(1) != 27;
         }
 
         private void OpenSidebar(object sender, RoutedEventArgs e)
         {
-            if(Sidebar.Visibility == Visibility.Visible)
+            if (Sidebar.Visibility == Visibility.Visible)
             {
                 Sidebar.Visibility = Visibility.Hidden;
                 MainContentTransform.X = 0;
@@ -4673,6 +5312,7 @@ namespace FitnessTrackerProject
                 MainContentTransform.X = 200;
             }
         }
+
         private void SwitchScreen(object sender, RoutedEventArgs e)
         {
             Button btn = sender as Button;
@@ -4683,14 +5323,10 @@ namespace FitnessTrackerProject
                 case 0:
                     MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
                     break;
-
                 case 1:
-                    // CoachStudio
                     MainFrame.Navigate(new CoachStudioUserControl(currentUserId));
                     break;
-
                 case 2:
-                    // Profile
                     MainFrame.Navigate(new ProfileUserControl(currentUserId));
                     break;
                 case 3:
@@ -5183,7 +5819,6 @@ namespace FitnessTrackerProject
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="#F3F4F6">
-
     <UserControl.Resources>
 
         <Style x:Key="CardTitle" TargetType="TextBlock">
@@ -5268,7 +5903,11 @@ namespace FitnessTrackerProject
         <DataTemplate x:Key="DayCard">
             <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitle}" Margin="0,0,0,10"/>
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitle}" VerticalAlignment="Center"/>
+                        <Button Content="Start Day" Style="{StaticResource StartButton}"
+                        HorizontalAlignment="Right" Click="StartDay_Click" Tag="{Binding}"/>
+                    </Grid>
                     <ItemsControl ItemsSource="{Binding Exercises}" ItemTemplate="{StaticResource ExerciseRow}"/>
                 </StackPanel>
             </Border>
@@ -5280,9 +5919,8 @@ namespace FitnessTrackerProject
         <Grid Margin="24,16,24,24" MaxWidth="760">
             <StackPanel>
 
-                <!-- Back (left margin leaves room for the menu button) -->
-                <Button Content="&#x2039;  Back to WorkoutHub" Style="{StaticResource LinkButton}"
-                        Click="Back_Click" HorizontalAlignment="Left" Margin="48,0,0,14"/>
+                <Button Content="&#x2039;  Back" Style="{StaticResource LinkButton}"
+        Click="Back_Click" HorizontalAlignment="Left" Margin="48,0,0,14"/>
 
                 <!-- Program header with the trainer's picture -->
                 <Border Background="White" CornerRadius="12" Padding="16" Margin="0,0,0,12">
@@ -5372,10 +6010,16 @@ namespace FitnessTrackerProject
             NavigationService navigation = NavigationService.GetNavigationService(this);
             if (navigation != null)
             {
-                navigation.Navigate(new WorkoutHubUserControl(_userId));
+                if (navigation.CanGoBack)
+                {
+                    navigation.GoBack(); // Goes back to Explore or WorkoutHub automatically
+                }
+                else
+                {
+                    navigation.Navigate(new WorkoutHubUserControl(_userId));
+                }
             }
         }
-
         // "Start" opens the WorkoutHub with this exercise already selected
         private void StartExercise_Click(object sender, RoutedEventArgs e)
         {
@@ -5393,6 +6037,29 @@ namespace FitnessTrackerProject
             if (navigation != null)
             {
                 navigation.Navigate(new WorkoutHubUserControl(_userId, exerciseName));
+            }
+        }
+        private void StartDay_Click(object sender, RoutedEventArgs e)
+        {
+            Button btn = (Button)sender;
+            ProgramDayItem day = btn.Tag as ProgramDayItem;
+            if (day == null || day.Exercises == null || day.Exercises.Count == 0)
+            {
+                MessageBox.Show("This day has no exercises.", "Workout");
+                return;
+            }
+
+            // Collect all exercise names in this day
+            List<string> exerciseList = new List<string>();
+            foreach (var ex in day.Exercises)
+            {
+                exerciseList.Add(ex.Name);
+            }
+
+            NavigationService navigation = NavigationService.GetNavigationService(this);
+            if (navigation != null)
+            {
+                navigation.Navigate(new WorkoutHubUserControl(_userId, exerciseList));
             }
         }
     }
@@ -6034,7 +6701,7 @@ namespace FitnessTrackerProject
                     <!-- 2. Add your video -->
                     <Border Background="White" CornerRadius="12" Padding="16">
                         <StackPanel>
-                            
+
                             <TextBlock Text="2. Add your video" Style="{StaticResource CardTitle}" Margin="0,0,0,10"/>
                             <TextBlock x:Name="txtHint" FontSize="12" Foreground="#6B7280"
                                                HorizontalAlignment="Center" Margin="0,0,0,12"/>
@@ -6051,6 +6718,8 @@ namespace FitnessTrackerProject
                                 </StackPanel>
                                 
                             </Grid>
+                            <Button x:Name="btnNextExercise" Content="Next Exercise" Style="{StaticResource PrimaryButton}"
+        Margin="0,10,0,0" Visibility="Collapsed" Click="NextExercise_Click"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -6100,11 +6769,39 @@ namespace FitnessTrackerProject
             </Grid>
 
             <!-- Recent workouts (empty for now) -->
+            <!-- Recent workouts -->
             <Border Grid.Row="3" Background="White" CornerRadius="12" Padding="16" Margin="0,12,0,0">
                 <StackPanel>
                     <TextBlock Text="Recent workouts" Style="{StaticResource CardTitle}" Margin="0,0,0,6"/>
                     <TextBlock x:Name="txtNoHistory" Text="No workouts yet. Pick an exercise and add a video."
-                               FontSize="13" Foreground="#6B7280" Margin="0,6,0,0"/>
+                   FontSize="13" Foreground="#6B7280" Margin="0,6,0,0"/>
+
+                    <!-- The list of previous workouts -->
+                    <ItemsControl x:Name="lstRecentWorkouts" Margin="0,8,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
+                            CornerRadius="10" Padding="12,10" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ExerciseName}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                            <TextBlock Text="{Binding DateText}" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ResultDisplay}" FontSize="15" FontWeight="Bold" Foreground="#3B82F6" HorizontalAlignment="Right"/>
+                                            <TextBlock Text="{Binding ResultNote}" FontSize="11" Foreground="#9CA3AF" HorizontalAlignment="Right"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
         </Grid>
@@ -6133,7 +6830,8 @@ namespace FitnessTrackerProject
         private string _selectedExercise;
         private string _cardAExercise;
         private string _cardBExercise;
-
+        private List<string> _dayExercises = new List<string>();
+        private int _currentDayIndex = 0;
         public ExerciseModel SelectedExerciseType
         {
             get
@@ -6141,11 +6839,17 @@ namespace FitnessTrackerProject
                 return ExercisePool.GetByName(_selectedExercise);
             }
         }
-        public WorkoutHubUserControl()
+        public WorkoutHubUserControl(int userId, List<string> dayExercises) : this(userId)
         {
-            InitializeComponent();
-            ExercisePool.Initialize();
-            LoadCatalogFromPool();
+            if (dayExercises != null && dayExercises.Count > 0)
+            {
+                _dayExercises = dayExercises;
+                _currentDayIndex = 0;
+
+                btnNextExercise.Visibility = Visibility.Visible;
+                SelectExercise(_dayExercises[0]);
+                txtHint.Text = $"Day Routine (1 of {_dayExercises.Count}): {_dayExercises[0]}";
+            }
         }
 
         public WorkoutHubUserControl(int userId)
@@ -6155,6 +6859,47 @@ namespace FitnessTrackerProject
             ExercisePool.Initialize();
             LoadCatalogFromPool();
             LoadMyPrograms();
+            LoadWorkoutStats();
+        }
+        private void LoadWorkoutStats()
+        {
+            if (currentUserId <= 0) return;
+
+            try
+            {
+                // 1. Populate the "Latest result" card
+                WorkoutHistoryItem latest = WorkoutRepository.GetLatestWorkout(currentUserId);
+                if (latest != null)
+                {
+                    txtBigNumber.Text = latest.ResultValue.ToString();
+                    txtUnit.Text = latest.ExerciseName.Equals("Plank", StringComparison.OrdinalIgnoreCase)
+                                   ? "seconds"
+                                   : $"{latest.ExerciseName.ToLower()} reps";
+                    txtQuality.Text = $"{latest.TrackingQuality}%";
+
+                    txtNote.Text = latest.ResultNote;
+                    noteBadge.Background = Hex(latest.NoteIsGood ? "#DCFCE7" : "#FEF3C7");
+                    txtNote.Foreground = Hex(latest.NoteIsGood ? "#15803D" : "#B45309");
+                    noteBadge.Visibility = Visibility.Visible;
+                }
+
+                // 2. Populate the "Recent workouts" card
+                List<WorkoutHistoryItem> recent = WorkoutRepository.GetRecentWorkouts(currentUserId);
+                if (recent.Count > 0)
+                {
+                    txtNoHistory.Visibility = Visibility.Collapsed;
+                    lstRecentWorkouts.ItemsSource = recent;
+                }
+                else
+                {
+                    txtNoHistory.Visibility = Visibility.Visible;
+                    lstRecentWorkouts.ItemsSource = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Could not load workouts: " + ex.Message);
+            }
         }
         // Opens the hub with an exercise already selected
         public WorkoutHubUserControl(int userId, string startExercise) : this(userId)
@@ -6164,7 +6909,28 @@ namespace FitnessTrackerProject
                 SelectExercise(startExercise);
             }
         }
+        private void NextExercise_Click(object sender, RoutedEventArgs e)
+        {
+            _currentDayIndex++;
 
+            if (_currentDayIndex < _dayExercises.Count)
+            {
+                string nextExercise = _dayExercises[_currentDayIndex];
+                SelectExercise(nextExercise);
+                txtHint.Text = $"Day Routine ({_currentDayIndex + 1} of {_dayExercises.Count}): {nextExercise}";
+
+                if (_currentDayIndex == _dayExercises.Count - 1)
+                {
+                    btnNextExercise.Content = "Finish Routine";
+                }
+            }
+            else
+            {
+                MessageBox.Show("Routine complete! Great workout today.", "Done", MessageBoxButton.OK, MessageBoxImage.Information);
+                btnNextExercise.Visibility = Visibility.Collapsed;
+                _dayExercises.Clear();
+            }
+        }
         // ================================================================
         // My programs
         // ================================================================

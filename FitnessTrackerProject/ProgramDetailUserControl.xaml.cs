@@ -53,10 +53,16 @@ namespace FitnessTrackerProject
             NavigationService navigation = NavigationService.GetNavigationService(this);
             if (navigation != null)
             {
-                navigation.Navigate(new WorkoutHubUserControl(_userId));
+                if (navigation.CanGoBack)
+                {
+                    navigation.GoBack(); // Goes back to Explore or WorkoutHub automatically
+                }
+                else
+                {
+                    navigation.Navigate(new WorkoutHubUserControl(_userId));
+                }
             }
         }
-
         // "Start" opens the WorkoutHub with this exercise already selected
         private void StartExercise_Click(object sender, RoutedEventArgs e)
         {
