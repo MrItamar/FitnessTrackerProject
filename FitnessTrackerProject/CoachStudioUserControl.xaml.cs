@@ -3,10 +3,10 @@ using System.Windows.Controls;
 
 namespace FitnessTrackerProject
 {
-    /// <summary>Coach Studio: a tab bar and a frame that shows "My programs" or "Create program".</summary>
     public partial class CoachStudioUserControl : UserControl
     {
         private readonly CoachProgramsUserControl _programs;
+        private readonly CoachTraineesUserControl _trainees;
         private readonly CreateProgramUserControl _create;
 
         public CoachStudioUserControl() : this(0) { }
@@ -16,6 +16,7 @@ namespace FitnessTrackerProject
             InitializeComponent();
 
             _programs = new CoachProgramsUserControl(coachId, this);
+            _trainees = new CoachTraineesUserControl(coachId);
             _create = new CreateProgramUserControl(coachId, this);
 
             OpenProgramsTab();
@@ -28,6 +29,13 @@ namespace FitnessTrackerProject
             if (coachFrame.Content != _programs) coachFrame.Navigate(_programs);
         }
 
+        public void OpenTraineesTab()
+        {
+            tabTrainees.IsChecked = true;
+            _trainees.Reload();
+            if (coachFrame.Content != _trainees) coachFrame.Navigate(_trainees);
+        }
+
         public void OpenEditTab(int programId)
         {
             tabCreate.IsChecked = true;
@@ -36,6 +44,7 @@ namespace FitnessTrackerProject
         }
 
         private void TabPrograms_Click(object sender, RoutedEventArgs e) { OpenProgramsTab(); }
+        private void TabTrainees_Click(object sender, RoutedEventArgs e) { OpenTraineesTab(); }
         private void TabCreate_Click(object sender, RoutedEventArgs e)
         {
             tabCreate.IsChecked = true;

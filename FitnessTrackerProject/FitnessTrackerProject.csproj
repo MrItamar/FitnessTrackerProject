@@ -128,6 +128,9 @@
     <Compile Include="CoachStudioUserControl.xaml.cs">
       <DependentUpon>CoachStudioUserControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="CoachTraineesUserControl.xaml.cs">
+      <DependentUpon>CoachTraineesUserControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CreateProgramUserControl.xaml.cs">
       <DependentUpon>CreateProgramUserControl.xaml</DependentUpon>
     </Compile>
@@ -147,6 +150,7 @@
     <Compile Include="Models\BaseUser.cs" />
     <Compile Include="Models\Coach.cs" />
     <Compile Include="Models\Trainee.cs" />
+    <Compile Include="Scripts\CoachRepository.cs" />
     <Compile Include="Scripts\DatabaseHelper.cs" />
     <Compile Include="Scripts\DistanceChecker.cs" />
     <Compile Include="Scripts\ExerciseRegistry.cs" />
@@ -178,6 +182,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="CoachStudioUserControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="CoachTraineesUserControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

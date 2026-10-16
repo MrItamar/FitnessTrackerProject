@@ -40,12 +40,15 @@
         </Grid.RowDefinitions>
 
         <!-- Tab bar (left margin leaves room for the menu button) -->
+        <!-- Tab bar -->
         <Border Grid.Row="0" Padding="72,16,24,0" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Background="White">
             <StackPanel Orientation="Horizontal">
                 <RadioButton x:Name="tabPrograms" Content="My programs" GroupName="coachTabs"
-                             Style="{StaticResource TabButton}" Click="TabPrograms_Click"/>
+                     Style="{StaticResource TabButton}" Click="TabPrograms_Click"/>
+                <RadioButton x:Name="tabTrainees" Content="My trainees" GroupName="coachTabs"
+                     Style="{StaticResource TabButton}" Click="TabTrainees_Click"/>
                 <RadioButton x:Name="tabCreate" Content="Create program" GroupName="coachTabs"
-                             Style="{StaticResource TabButton}" Click="TabCreate_Click"/>
+                     Style="{StaticResource TabButton}" Click="TabCreate_Click"/>
             </StackPanel>
         </Border>
 
