@@ -11,7 +11,7 @@ namespace FitnessTrackerProject.Scripts
         /// Saves everything in ONE transaction: either the whole program is saved, or nothing is.
         /// Returns the new ProgramID.
         /// </summary>
-        public static int SaveProgram(int coachId, string name, string goal, string level, List<CoachDay> days)
+        public static int SaveProgram(int coachId, string name, string goal, string level, List<CoachDay> days, int? assignedTraineeId = null)
         {
             using (OleDbConnection connection = DatabaseHelper.GetConnection())
             {
@@ -23,8 +23,8 @@ namespace FitnessTrackerProject.Scripts
                     {
                         // 1. The program itself
                         int programId = InsertAndGetId(connection, transaction,
-                            "INSERT INTO ProgramsTable (CoachID, ProgramName, Goal, ProgramLevel, CreatedDate) VALUES (?, ?, ?, ?, ?)",
-                            coachId, name, goal, level, DateTime.Now);
+                                "INSERT INTO ProgramsTable (CoachID, ProgramName, Goal, ProgramLevel, CreatedDate, AssignedTraineeID) VALUES (?, ?, ?, ?, ?, ?)",
+                                coachId, name, goal, level, DateTime.Now, assignedTraineeId.HasValue ? (object)assignedTraineeId.Value : DBNull.Value);
 
                         // 2. Its days
                         for (int d = 0; d < days.Count; d++)
@@ -145,6 +145,97 @@ namespace FitnessTrackerProject.Scripts
                         command.Parameters.AddWithValue("?", value ?? DBNull.Value);   // null -> empty cell in the database
                 }
                 command.ExecuteNonQuery();
+            }
+        }
+        public static void AssignCustomProgramToTrainee(int originalProgramId, int coachId, int traineeId)
+        {
+            using (var connection = DatabaseHelper.GetConnection())
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Copy the main program and stamp it with the AssignedTraineeID
+                        string insertProg = "INSERT INTO ProgramsTable (CoachID, ProgramName, Goal, ProgramLevel, CreatedDate, AssignedTraineeID) " +
+                                            "SELECT CoachID, ProgramName & ' (Custom)', Goal, ProgramLevel, NOW(), ? " +
+                                            "FROM ProgramsTable WHERE ProgramID = ?";
+
+                        int newProgramId = 0;
+                        using (var cmd = new System.Data.OleDb.OleDbCommand(insertProg, connection, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("?", traineeId);
+                            cmd.Parameters.AddWithValue("?", originalProgramId);
+                            cmd.ExecuteNonQuery();
+
+                            cmd.CommandText = "SELECT @@IDENTITY";
+                            newProgramId = Convert.ToInt32(cmd.ExecuteScalar()); // FIXED: Safe conversion
+                        }
+
+                        // 2. Find all the days in the original program
+                        var daysTable = new System.Data.DataTable();
+                        using (var cmdDays = new System.Data.OleDb.OleDbCommand("SELECT DayID, DayNumber, DayFocus FROM ProgramDaysTable WHERE ProgramID = ?", connection, transaction))
+                        {
+                            cmdDays.Parameters.AddWithValue("?", originalProgramId);
+                            using (var reader = cmdDays.ExecuteReader()) { daysTable.Load(reader); }
+                        }
+
+                        // 3. Duplicate each day AND its exercises
+                        foreach (System.Data.DataRow dayRow in daysTable.Rows)
+                        {
+                            int oldDayId = Convert.ToInt32(dayRow["DayID"]);
+
+                            // A. Copy the Day
+                            string insertDay = "INSERT INTO ProgramDaysTable (ProgramID, DayNumber, DayFocus) VALUES (?, ?, ?)";
+                            int newDayId = 0;
+                            using (var cmdD = new System.Data.OleDb.OleDbCommand(insertDay, connection, transaction))
+                            {
+                                cmdD.Parameters.AddWithValue("?", newProgramId);
+                                cmdD.Parameters.AddWithValue("?", dayRow["DayNumber"]);
+                                cmdD.Parameters.AddWithValue("?", dayRow["DayFocus"]);
+                                cmdD.ExecuteNonQuery();
+
+                                cmdD.CommandText = "SELECT @@IDENTITY";
+                                newDayId = Convert.ToInt32(cmdD.ExecuteScalar()); // FIXED: Safe conversion
+                            }
+
+                            // B. RESTORED: Copy the Exercises for this specific day
+                            string insertEx = "INSERT INTO ProgramExercisesTable (DayID, ExerciseID, Sets, Reps, RestTime, SortOrder) " +
+                                              "SELECT ?, ExerciseID, Sets, Reps, RestTime, SortOrder " +
+                                              "FROM ProgramExercisesTable WHERE DayID = ?";
+                            using (var cmdE = new System.Data.OleDb.OleDbCommand(insertEx, connection, transaction))
+                            {
+                                cmdE.Parameters.AddWithValue("?", newDayId);
+                                cmdE.Parameters.AddWithValue("?", oldDayId);
+                                cmdE.ExecuteNonQuery();
+                            }
+                        }
+
+                        // 4. Add to the Trainee's dashboard list
+                        using (var cmdT = new System.Data.OleDb.OleDbCommand("INSERT INTO TraineePrograms (TraineeID, ProgramID) VALUES (?, ?)", connection, transaction))
+                        {
+                            cmdT.Parameters.AddWithValue("?", traineeId);
+                            cmdT.Parameters.AddWithValue("?", newProgramId);
+                            cmdT.ExecuteNonQuery();
+                        }
+
+                        // 5. Remove the original public template from their list
+                        using (var cmdDel = new System.Data.OleDb.OleDbCommand("DELETE FROM TraineePrograms WHERE TraineeID = ? AND ProgramID = ?", connection, transaction))
+                        {
+                            cmdDel.Parameters.AddWithValue("?", traineeId);
+                            cmdDel.Parameters.AddWithValue("?", originalProgramId);
+                            cmdDel.ExecuteNonQuery();
+                        }
+
+                        // FIXED: Commit MUST be outside the loop, at the very end
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        try { transaction.Rollback(); } catch { }
+                        throw new Exception("The REAL error is: " + ex.Message);
+                    }
+                }
             }
         }
     }

@@ -1,0 +1,49 @@
+﻿<Window x:Class="FitnessTrackerProject.ChatWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Chat" Height="450" Width="400" Background="#F3F4F6" WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="45"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="70"/>
+        </Grid.RowDefinitions>
+
+        <!-- Top Header with Refresh Button -->
+        <Border Grid.Row="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1">
+            <Grid Margin="15,0">
+                <TextBlock Text="Conversation" FontWeight="SemiBold" FontSize="14" Foreground="#111827" VerticalAlignment="Center"/>
+                <Button Content="🔄 Refresh" Click="Refresh_Click" HorizontalAlignment="Right" VerticalAlignment="Center" 
+                        Background="#F3F4F6" Foreground="#4B5563" BorderBrush="#E5E7EB" BorderThickness="1" 
+                        Padding="10,4" Cursor="Hand"/>
+            </Grid>
+        </Border>
+
+        <!-- Messages List -->
+        <ListBox x:Name="MessagesList" Grid.Row="1" Margin="10" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="White" CornerRadius="8" Padding="10" Margin="5" BorderBrush="#E5E7EB" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="{Binding SenderName}" FontWeight="Bold" FontSize="12" Foreground="#3B82F6"/>
+                            <TextBlock Text="{Binding MessageText}" TextWrapping="Wrap" Margin="0,4,0,0" FontSize="14"/>
+                            <TextBlock Text="{Binding DisplayDate}" FontSize="10" Foreground="Gray" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Input Area -->
+        <Border Grid.Row="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0">
+            <Grid Margin="15,10,15,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="MessageTextBox" Padding="10" VerticalContentAlignment="Center" BorderBrush="#E5E7EB" BorderThickness="1"/>
+                <Button Grid.Column="1" Content="Send" Margin="10,0,0,0" Click="SendMessage_Click" Background="#3B82F6" Foreground="White" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

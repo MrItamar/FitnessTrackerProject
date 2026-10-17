@@ -11,142 +11,194 @@
         </Style>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="24,16,24,24" MaxWidth="960" HorizontalAlignment="Center">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+    <!-- MASTER GRID: Fixes the "Content is set more than once" error -->
+    <Grid>
 
-            <!-- Header -->
-            <StackPanel Grid.Row="0" Margin="48,0,0,16">
-                <TextBlock Text="My Trainees" FontSize="22" FontWeight="SemiBold" Foreground="#111827"/>
-                <TextBlock Text="Monitor performance and view workout histories for your trainees" FontSize="13" Foreground="#6B7280"/>
-            </StackPanel>
+        <!-- 1. MAIN SCROLLABLE DASHBOARD -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <Grid Margin="24,16,24,24" MaxWidth="960" HorizontalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.2*"/>
-                    <ColumnDefinition Width="14"/>
-                    <ColumnDefinition Width="1.8*"/>
-                </Grid.ColumnDefinitions>
+                <!-- Header -->
+                <StackPanel Grid.Row="0" Margin="48,0,0,16">
+                    <TextBlock Text="My Trainees" FontSize="22" FontWeight="SemiBold" Foreground="#111827"/>
+                    <TextBlock Text="Monitor performance and view workout histories for your trainees" FontSize="13" Foreground="#6B7280"/>
+                </StackPanel>
 
-                <!-- LEFT: Trainees List -->
-                <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="16">
-                    <StackPanel>
-                        <TextBlock Text="Assigned Trainees" Style="{StaticResource CardTitle}" Margin="0,0,0,12"/>
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="1.8*"/>
+                    </Grid.ColumnDefinitions>
 
-                        <ListBox x:Name="lstTrainees" BorderThickness="0" Background="Transparent"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 SelectionChanged="LstTrainees_SelectionChanged">
-                            <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem">
-                                    <Setter Property="Margin" Value="0,0,0,8"/>
-                                    <Setter Property="Cursor" Value="Hand"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="ListBoxItem">
-                                                <Border x:Name="Bd" Background="White" BorderBrush="#E5E7EB"
-                                                        BorderThickness="1.5" CornerRadius="10" Padding="12,10">
-                                                    <ContentPresenter/>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsSelected" Value="True">
-                                                        <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
-                                                        <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ListBox.ItemContainerStyle>
+                    <!-- LEFT: Trainees List -->
+                    <Border Grid.Column="0" Background="White" CornerRadius="12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Assigned Trainees" Style="{StaticResource CardTitle}" Margin="0,0,0,12"/>
 
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
+                            <ListBox x:Name="lstTrainees" BorderThickness="0" Background="Transparent"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     SelectionChanged="LstTrainees_SelectionChanged">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Margin" Value="0,0,0,8"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border x:Name="Bd" Background="White" BorderBrush="#E5E7EB"
+                                                            BorderThickness="1.5" CornerRadius="10" Padding="12,10">
+                                                        <ContentPresenter/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter TargetName="Bd" Property="Background" Value="#EFF6FF"/>
+                                                            <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
 
-                                        <!-- Profile Picture / Initial -->
-                                        <Grid Grid.Column="0" Width="44" Height="44" Margin="0,0,12,0" VerticalAlignment="Center">
-                                            <Ellipse Fill="#DBEAFE"/>
-                                            <TextBlock Text="{Binding Initial}" FontSize="18" FontWeight="Bold" Foreground="#1D4ED8"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            <Ellipse>
-                                                <Ellipse.Fill>
-                                                    <ImageBrush ImageSource="{Binding Picture}" Stretch="UniformToFill"/>
-                                                </Ellipse.Fill>
-                                            </Ellipse>
-                                        </Grid>
-
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
-                                            <TextBlock Text="{Binding Goal}" FontSize="12" Foreground="#3B82F6" Margin="0,1,0,0"/>
-                                            <TextBlock Text="{Binding Details}" FontSize="11" Foreground="#9CA3AF" Margin="0,2,0,0"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-
-                        <TextBlock x:Name="txtNoTrainees" Text="No trainees have selected you as their coach yet."
-                                   FontSize="13" Foreground="#6B7280" Margin="0,16" Visibility="Collapsed" TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- RIGHT: Trainee Workout History Feed -->
-                <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="16" VerticalAlignment="Top">
-                    <StackPanel>
-                        <TextBlock x:Name="txtPlaceholder" Text="Select a trainee on the left to review their workout performance."
-                                   FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,32"/>
-
-                        <StackPanel x:Name="panelTraineeDetails" Visibility="Collapsed">
-                            <!-- Trainee Header Overview -->
-                            <Grid Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock x:Name="txtSelectedTraineeName" FontSize="18" FontWeight="SemiBold" Foreground="#111827"/>
-                                    <TextBlock x:Name="txtSelectedTraineeMeta" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Grid>
-
-                            <TextBlock Text="Workout History" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
-
-                            <ItemsControl x:Name="lstWorkoutHistory">
-                                <ItemsControl.ItemTemplate>
+                                <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
-                                                CornerRadius="10" Padding="12,10" Margin="0,0,0,8">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
 
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ExerciseName}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
-                                                    <TextBlock Text="{Binding DateText}" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
-                                                    <TextBlock Text="{Binding Note}" FontSize="11" Foreground="#9CA3AF" Margin="0,2,0,0"/>
-                                                </StackPanel>
-
-                                                <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ResultDisplay}" FontSize="16" FontWeight="Bold" Foreground="#3B82F6" HorizontalAlignment="Right"/>
-                                                    <TextBlock Text="{Binding TrackingQuality, StringFormat='{}Quality: {0}%'}" FontSize="11" Foreground="#6B7280" HorizontalAlignment="Right"/>
-                                                </StackPanel>
+                                            <!-- Profile Picture / Initial -->
+                                            <Grid Grid.Column="0" Width="44" Height="44" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                <Ellipse Fill="#DBEAFE"/>
+                                                <TextBlock Text="{Binding Initial}" FontSize="18" FontWeight="Bold" Foreground="#1D4ED8"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                <Ellipse>
+                                                    <Ellipse.Fill>
+                                                        <ImageBrush ImageSource="{Binding Picture}" Stretch="UniformToFill"/>
+                                                    </Ellipse.Fill>
+                                                </Ellipse>
                                             </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
 
-                            <TextBlock x:Name="txtNoWorkouts" Text="This trainee has not recorded any workouts yet."
-                                       FontSize="13" Foreground="#6B7280" Margin="0,14" Visibility="Collapsed" HorizontalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                                <TextBlock Text="{Binding Goal}" FontSize="12" Foreground="#3B82F6" Margin="0,1,0,0"/>
+                                                <TextBlock Text="{Binding Details}" FontSize="11" Foreground="#9CA3AF" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock x:Name="txtNoTrainees" Text="No trainees have selected you as their coach yet."
+                                       FontSize="13" Foreground="#6B7280" Margin="0,16" Visibility="Collapsed" TextWrapping="Wrap"/>
                         </StackPanel>
-                    </StackPanel>
-                </Border>
+                    </Border>
+
+                    <!-- RIGHT: Trainee Workout History Feed -->
+                    <Border Grid.Column="2" Background="White" CornerRadius="12" Padding="16" VerticalAlignment="Top">
+                        <StackPanel>
+                            <TextBlock x:Name="txtPlaceholder" Text="Select a trainee on the left to review their workout performance."
+                                       FontSize="13" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,32"/>
+
+                            <StackPanel x:Name="panelTraineeDetails" Visibility="Collapsed">
+                                <!-- Trainee Header Overview -->
+                                <Grid Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock x:Name="txtSelectedTraineeName" FontSize="18" FontWeight="SemiBold" Foreground="#111827"/>
+                                        <TextBlock x:Name="txtSelectedTraineeMeta" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="Workout History" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Button Content="💬 Message" Tag="{Binding Id}" Click="OpenChat_Click" Background="#3B82F6" Foreground="White" BorderThickness="0" Padding="15,5" Cursor="Hand"/>
+                                    <!-- NEW ASSIGN BUTTON -->
+                                    <Button Content="📋 Assign Program" Click="OpenAssignProgram_Click" Background="White" Foreground="#3B82F6" BorderBrush="#3B82F6" BorderThickness="1" Padding="15,5" Margin="10,0,0,0" Cursor="Hand"/>
+                                </StackPanel>
+
+                                <ItemsControl x:Name="lstWorkoutHistory">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1"
+                                                    CornerRadius="10" Padding="12,10" Margin="0,0,0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ExerciseName}" FontSize="14" FontWeight="SemiBold" Foreground="#111827"/>
+                                                        <TextBlock Text="{Binding DateText}" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+                                                        <TextBlock Text="{Binding Note}" FontSize="11" Foreground="#9CA3AF" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding ResultDisplay}" FontSize="16" FontWeight="Bold" Foreground="#3B82F6" HorizontalAlignment="Right"/>
+                                                        <TextBlock Text="{Binding TrackingQuality, StringFormat='{}Quality: {0}%'}" FontSize="11" Foreground="#6B7280" HorizontalAlignment="Right"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                    <Button x:Name="btnLoadMore" Content="Load More" Click="LoadMoreWorkouts_Click" 
+                                            Background="White" Foreground="#3B82F6" BorderBrush="#3B82F6" BorderThickness="1" 
+                                            Padding="10,6" Margin="0,0,10,0" Cursor="Hand" Visibility="Collapsed"/>
+
+                                    <Button x:Name="btnShowLess" Content="Show Less" Click="ShowLessWorkouts_Click" 
+                                            Background="White" Foreground="#6B7280" BorderBrush="#E5E7EB" BorderThickness="1" 
+                                            Padding="10,6" Cursor="Hand" Visibility="Collapsed"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="txtNoWorkouts" Text="This trainee has not recorded any workouts yet."
+                                           FontSize="13" Foreground="#6B7280" Margin="0,14" Visibility="Collapsed" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
+        </ScrollViewer>
+
+        <!-- 2. ASSIGN PROGRAM OVERLAY (Now perfectly layered over the scroll viewer) -->
+        <Grid x:Name="AssignProgramOverlay" Visibility="Collapsed" Background="#80000000">
+            <Border Background="White" CornerRadius="12" Width="400" Height="450" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="20">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Assign Custom Program" FontSize="18" FontWeight="SemiBold" Foreground="#111827" Margin="0,0,0,15"/>
+
+                    <ListBox x:Name="lstProgramTemplates" Grid.Row="1" BorderBrush="#E5E7EB" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="5,10">
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="14" Foreground="#111827"/>
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                        <Button Content="Cancel" Click="CancelAssign_Click" Background="Transparent" Foreground="#6B7280" BorderThickness="0" Padding="15,8" Margin="0,0,10,0" Cursor="Hand"/>
+                        <Button Content="Assign to Trainee" Click="ConfirmAssign_Click" Background="#3B82F6" Foreground="White" BorderThickness="0" Padding="15,8" Cursor="Hand" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </Grid>
-    </ScrollViewer>
+
+    </Grid>
 </UserControl>

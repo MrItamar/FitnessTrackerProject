@@ -187,6 +187,8 @@ namespace FitnessTrackerProject
                 Cv2.NamedWindow(AnalysisWindowName, WindowFlags.Normal);
                 Cv2.ResizeWindow(AnalysisWindowName, 640, 360);
 
+                int badFormFrames = 0; // TRACKER FOR FORM ALERTS
+
                 using (var frame = new Mat())
                 {
                     int frameIndex = 0;
@@ -210,12 +212,34 @@ namespace FitnessTrackerProject
 
                         PoseDrawer.DrawSkeleton(frame, res.Keypoints);
 
+                        // --- ADVANCED FORM ALERTS LOGIC (Visual Only) ---
+                        string status = counter.StatusText ?? "";
+                        bool isBadForm = status.IndexOf("too low", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                         status.IndexOf("too high", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                        if (isBadForm)
+                        {
+                            badFormFrames++;
+                            // Trigger alert if bad form lasts for ~0.5 seconds (15 frames at 30fps)
+                            if (badFormFrames > 15)
+                            {
+                                // MASSIVE visual alert in the center of the screen
+                                PoseDrawer.PutText(frame, status.ToUpper() + "!", frame.Rows / 2, 2.0, Scalar.Red, 4);
+                            }
+                        }
+                        else
+                        {
+                            badFormFrames = 0; // Reset immediately if form is fixed
+                        }
+                        // ------------------------------------------------
+
                         if (res.Distance == DistanceStatus.TooClose)
                         {
                             PoseDrawer.PutText(frame, "Too close - step back", 95, 0.8, Scalar.Red, 2);
                         }
 
                         PoseDrawer.PutText(frame, counterText, 45, 1.3, Scalar.Yellow, 3);
+                        PoseDrawer.PutText(frame, status, 90, 0.7, Scalar.White, 2); // Standard small status text
 
                         using (Mat display = PoseDrawer.ResizeForDisplay(frame, 640, 360))
                         {

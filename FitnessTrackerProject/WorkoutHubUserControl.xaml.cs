@@ -20,6 +20,8 @@ namespace FitnessTrackerProject
         private string _cardBExercise;
         private List<string> _dayExercises = new List<string>();
         private int _currentDayIndex = 0;
+        private int? _myCoachId = null;
+
         public ExerciseModel SelectedExerciseType
         {
             get
@@ -137,7 +139,9 @@ namespace FitnessTrackerProject
                 // Row 1: all programs of the dedicated trainer (only if the trainee has one)
                 if (trainerId.HasValue)
                 {
-                    List<ProgramChoiceItem> fromTrainer = TraineeRepository.GetProgramsByCoach(trainerId.Value);
+                    // Pass currentUserId here so the custom programs are loaded!
+                    List<ProgramChoiceItem> fromTrainer = TraineeRepository.GetProgramsByCoach(trainerId.Value, currentUserId);
+
                     lstTrainerPrograms.ItemsSource = fromTrainer;
                     panelTrainerPrograms.Visibility = Visibility.Visible;
 
@@ -363,6 +367,23 @@ namespace FitnessTrackerProject
             {
                 mainWindow.ProcessVideo(null, model);
             }
+        }
+
+        private void OpenInbox_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. Ask the database who this trainee's dedicated coach is
+            int? myCoachId = TraineeRepository.GetTrainerId(currentUserId);
+
+            if (myCoachId == null)
+            {
+                MessageBox.Show("You don't have a coach assigned yet. Go to Explore to choose one!", "Inbox");
+                return;
+            }
+
+            // 2. Launch the shared Chat Window!
+            // (We pass currentUserId as the sender, and myCoachId as the receiver)
+            ChatWindow chatWin = new ChatWindow(currentUserId, myCoachId.Value, "Coach");
+            chatWin.Show();
         }
     }
 }

@@ -339,6 +339,13 @@
                     </ItemsControl>
                 </StackPanel>
             </Border>
+            <Button x:Name="InboxButton" Content="💬 Chat with Coach" 
+        HorizontalAlignment="Right" VerticalAlignment="Top" 
+        Margin="0,20,24,0" Padding="12,6"
+        Background="White" Foreground="#3B82F6" 
+        BorderBrush="#E5E7EB" BorderThickness="1" 
+        Cursor="Hand" Click="OpenInbox_Click"/>
+
         </Grid>
     </ScrollViewer>
 </UserControl>

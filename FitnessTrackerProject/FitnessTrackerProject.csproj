@@ -122,6 +122,9 @@
     <Compile Include="AllExercisesWindow.xaml.cs">
       <DependentUpon>AllExercisesWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ChatWindow.xaml.cs">
+      <DependentUpon>ChatWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CoachProgramsUserControl.xaml.cs">
       <DependentUpon>CoachProgramsUserControl.xaml</DependentUpon>
     </Compile>
@@ -157,6 +160,7 @@
     <Compile Include="Scripts\ExercisePool.cs" />
     <Compile Include="Scripts\IExerciseCounter.cs" />
     <Compile Include="Scripts\KeyPoints.cs" />
+    <Compile Include="Scripts\MessageRepository.cs" />
     <Compile Include="Scripts\PlankChecker.cs" />
     <Compile Include="Scripts\PoseChecks.cs" />
     <Compile Include="Scripts\PoseDrawer.cs" />
@@ -174,6 +178,10 @@
       <DependentUpon>WorkoutHubUserControl.xaml</DependentUpon>
     </Compile>
     <Page Include="AllExercisesWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="ChatWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

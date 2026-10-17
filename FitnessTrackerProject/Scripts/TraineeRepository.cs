@@ -53,7 +53,7 @@ namespace FitnessTrackerProject.Scripts
 
         private const string ProgramSelect =
             "SELECT ProgramsTable.ProgramID, ProgramsTable.ProgramName, ProgramsTable.Goal, " +
-            "ProgramsTable.ProgramLevel, ProgramsTable.CoachID, Users.Username, Users.ProfilePicPath " +
+            "ProgramsTable.ProgramLevel, ProgramsTable.CoachID, ProgramsTable.AssignedTraineeID, Users.Username, Users.ProfilePicPath " +
             "FROM ProgramsTable INNER JOIN Users ON ProgramsTable.CoachID = Users.ID ";
 
         // ================================================================
@@ -182,19 +182,38 @@ namespace FitnessTrackerProject.Scripts
         public static List<ProgramChoiceItem> GetPrograms(HashSet<int> selectedIds)
         {
             DataTable dt = DatabaseHelper.ExecuteQueryTable(
-                ProgramSelect + "ORDER BY ProgramsTable.CreatedDate DESC");
+                ProgramSelect + "WHERE ProgramsTable.AssignedTraineeID IS NULL " +
+                "ORDER BY ProgramsTable.CreatedDate DESC");
+
             return BuildPrograms(dt, selectedIds);
         }
 
         /// <summary>All programs made by one coach (the trainee's dedicated trainer).</summary>
-        public static List<ProgramChoiceItem> GetProgramsByCoach(int coachId)
+        public static List<ProgramChoiceItem> GetProgramsByCoach(int coachId, int? currentTraineeId = null)
         {
-            DataTable dt = DatabaseHelper.ExecuteQueryTable(
-                ProgramSelect + "WHERE ProgramsTable.CoachID = ? ORDER BY ProgramsTable.CreatedDate DESC",
-                p => p.AddWithValue("?", coachId));
+            string sql = ProgramSelect + "WHERE ProgramsTable.CoachID = ? AND (ProgramsTable.AssignedTraineeID IS NULL ";
+
+            if (currentTraineeId.HasValue)
+            {
+                sql += "OR ProgramsTable.AssignedTraineeID = ?) ";
+            }
+            else
+            {
+                sql += ") ";
+            }
+            sql += "ORDER BY ProgramsTable.CreatedDate DESC";
+
+            DataTable dt = DatabaseHelper.ExecuteQueryTable(sql, p =>
+            {
+                p.AddWithValue("?", coachId);
+                if (currentTraineeId.HasValue)
+                {
+                    p.AddWithValue("?", currentTraineeId.Value);
+                }
+            });
+
             return BuildPrograms(dt, null);
         }
-
         /// <summary>The programs this trainee added.</summary>
         public static List<ProgramChoiceItem> GetChosenPrograms(int traineeId)
         {
