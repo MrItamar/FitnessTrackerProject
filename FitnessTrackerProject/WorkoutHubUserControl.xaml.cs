@@ -385,5 +385,45 @@ namespace FitnessTrackerProject
             ChatWindow chatWin = new ChatWindow(currentUserId, myCoachId.Value, "Coach");
             chatWin.Show();
         }
+
+        private void GetAIDebrief_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. You already have the logged-in trainee's ID (assuming it's stored in a variable like currentUserId)
+                int traineeId = currentUserId;
+
+                // Fetch their name and goal to give the AI context
+                var trainee = CoachRepository.GetTraineeById(traineeId);
+
+                if (trainee == null)
+                {
+                    MessageBox.Show("Could not load your profile details.", "Error");
+                    return;
+                }
+
+                // 2. Generate their workout history string
+                string filledData = AIAnalysisWindow.BuildEfficientAIPrompt(
+                    trainee.TraineeId,
+                    trainee.Name,
+                    trainee.Goal,
+                    trainee.Details
+                );
+
+                if (string.IsNullOrWhiteSpace(filledData))
+                {
+                    MessageBox.Show("You haven't logged any workouts yet. Go crush a workout first!", "No Data");
+                    return;
+                }
+
+                // 3. Launch the window in "Trainee" mode!
+                AIAnalysisWindow aiWindow = new AIAnalysisWindow(false,filledData);
+                aiWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to launch AI Debrief: " + ex.Message, "Error");
+            }
+        }
     }
 }

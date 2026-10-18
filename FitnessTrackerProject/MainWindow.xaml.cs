@@ -16,7 +16,7 @@ namespace FitnessTrackerProject
 
         private PoseEstimator _estimator;
         private double _videoFps = 30.0;
-        private int currentUserId;
+        public static int currentUserId;
         private bool IsCoach;
 
         public MainWindow() { }

@@ -182,5 +182,51 @@ namespace FitnessTrackerProject
             _loadedWorkoutsCount = Math.Max(WorkoutsPerPage, _loadedWorkoutsCount - WorkoutsPerPage);
             RefreshWorkoutListDisplay();
         }
+        private void OpenAIAnalysis_Click(object sender, RoutedEventArgs e)
+        {
+            if (lstTrainees.SelectedItem is CoachTraineeItem selectedTrainee)
+            {
+                _activeTraineeId = selectedTrainee.TraineeId;
+            }
+            if (_activeTraineeId <= 0)
+            {
+                MessageBox.Show("Please select a trainee first.", "Notice");
+                return;
+            }
+
+            try
+            {
+                // 1. Fetch the trainee's true Name and Goal from the database
+                CoachTraineeItem trainee = CoachRepository.GetTraineeById(_activeTraineeId);
+
+                if (trainee == null)
+                {
+                    MessageBox.Show("Could not load trainee details from the database.", "Error");
+                    return;
+                }
+
+                // 2. Build the highly efficient text summary of their last ~25 workouts
+                string filledData = AIAnalysisWindow.BuildEfficientAIPrompt(
+                    trainee.TraineeId,
+                    trainee.Name,
+                    trainee.Goal, trainee.Details
+                );
+
+                if (string.IsNullOrWhiteSpace(filledData))
+                {
+                    MessageBox.Show($"{trainee.Name} hasn't logged any workouts yet. Nothing to analyze!", "No Data");
+                    return;
+                }
+
+                // 3. Open the AI Window and inject the data
+                AIAnalysisWindow aiWindow = new AIAnalysisWindow(true,filledData);
+                aiWindow.Owner = Window.GetWindow(this); // Keeps the window floating above your main app
+                aiWindow.ShowDialog(); // Use ShowDialog() so they finish the analysis before clicking elsewhere
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to launch AI Analysis: " + ex.Message, "Error");
+            }
+        }
     }
 }

@@ -339,13 +339,19 @@
                     </ItemsControl>
                 </StackPanel>
             </Border>
-            <Button x:Name="InboxButton" Content="💬 Chat with Coach" 
-        HorizontalAlignment="Right" VerticalAlignment="Top" 
-        Margin="0,20,24,0" Padding="12,6"
-        Background="White" Foreground="#3B82F6" 
-        BorderBrush="#E5E7EB" BorderThickness="1" 
-        Cursor="Hand" Click="OpenInbox_Click"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,24,0">
 
+                <!-- AI Button (Placed first so it sits on the left side of the chat button) -->
+                <Button Content="🤖 Get AI Debrief" Click="GetAIDebrief_Click" 
+            Background="#10B981" Foreground="White" BorderThickness="0" 
+            Padding="15,8" Margin="0,0,10,0" FontWeight="SemiBold" Cursor="Hand"/>
+
+                <!-- Chat Button -->
+                <Button x:Name="InboxButton" Content="💬 Chat with Coach" 
+            Background="White" Foreground="#3B82F6" BorderBrush="#E5E7EB" 
+            BorderThickness="1" Padding="12,6" Cursor="Hand" Click="OpenInbox_Click"/>
+
+            </StackPanel>
         </Grid>
     </ScrollViewer>
 </UserControl>

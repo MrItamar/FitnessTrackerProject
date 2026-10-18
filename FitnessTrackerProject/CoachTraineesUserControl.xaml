@@ -119,10 +119,10 @@
                                 <TextBlock Text="Workout History" Style="{StaticResource CardTitle}" Margin="0,0,0,8"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
                                     <Button Content="💬 Message" Tag="{Binding Id}" Click="OpenChat_Click" Background="#3B82F6" Foreground="White" BorderThickness="0" Padding="15,5" Cursor="Hand"/>
-                                    <!-- NEW ASSIGN BUTTON -->
                                     <Button Content="📋 Assign Program" Click="OpenAssignProgram_Click" Background="White" Foreground="#3B82F6" BorderBrush="#3B82F6" BorderThickness="1" Padding="15,5" Margin="10,0,0,0" Cursor="Hand"/>
+                                    <!-- NEW AI ANALYZE BUTTON -->
+                                    <Button Content="🤖 AI Analyze" Click="OpenAIAnalysis_Click" Background="#10B981" Foreground="White" BorderThickness="0" Padding="15,5" Margin="10,0,0,0" Cursor="Hand" FontWeight="SemiBold"/>
                                 </StackPanel>
-
                                 <ItemsControl x:Name="lstWorkoutHistory">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>

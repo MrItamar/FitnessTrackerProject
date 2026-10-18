@@ -27,7 +27,23 @@ namespace FitnessTrackerProject.Scripts
         public string ResultText(double fps) { return "Push-ups counted: " + Count; }
         public string OverlayText(double fps) { return "Pushup - " + Count; }
         public string StatusText { get { return "State: " + State; } }
-        public bool IsHorizontal { get { return true; } }
+        private bool? _isHorizontal;
+        public bool IsHorizontal
+        {
+            get
+            {
+                if (_isHorizontal == null)
+                {
+                    object result = DatabaseHelper.ExecuteScalar(
+                        "SELECT Horizontal FROM ExercisesTable WHERE ExerciseName = ?",
+                        p => p.AddWithValue("?", this.Name));
+
+                    _isHorizontal = (result != null && result != DBNull.Value) && Convert.ToBoolean(result);
+                }
+
+                return _isHorizontal.Value;
+            }
+        }
 
         // A push-up: horizontal body, and the elbow angle goes up and down
         public double Match(List<FrameResult> frames)
