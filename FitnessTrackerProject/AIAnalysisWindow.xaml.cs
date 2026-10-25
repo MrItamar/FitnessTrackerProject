@@ -69,7 +69,7 @@ namespace FitnessTrackerProject
 
         private async void AnalyzeButton_Click(object sender, RoutedEventArgs e)
         {
-            string apiKey = ""; // Replace with your actual Gemini API Key A99Q.9999Ab8R9N6IncV999UHmxBcIq-vradf4dQS99999iEXSVj000000wF-FcpGCDX000Lg0007f000e5w
+            string apiKey = ""; // Replace with your actual Gemini API Key A00Q.A0000b8RN6IncVUH000mxBcIq-vrad000000f4dQSi000000EXSV00j0wF-FcpGC0000DXLg75w
             string data = DataInput.Text;
 
             if (string.IsNullOrWhiteSpace(data))
@@ -79,7 +79,7 @@ namespace FitnessTrackerProject
             }
 
             Button clickedButton = sender as Button;
-            if (clickedButton != null) clickedButton.IsEnabled = false;
+            if (clickedButton != null) clickedButton.IsEnabled = false;//email:unknown pass: gur3115
 
             ResultOutput.Text = "Analyzing data...";
 
