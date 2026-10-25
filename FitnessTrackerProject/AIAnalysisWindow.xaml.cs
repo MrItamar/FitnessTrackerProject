@@ -69,7 +69,7 @@ namespace FitnessTrackerProject
 
         private async void AnalyzeButton_Click(object sender, RoutedEventArgs e)
         {
-            string apiKey = ""; // Replace with your actual Gemini API Key
+            string apiKey = ""; // Replace with your actual Gemini API Key A99Q.9999Ab8R9N6IncV999UHmxBcIq-vradf4dQS99999iEXSVj000000wF-FcpGCDX000Lg0007f000e5w
             string data = DataInput.Text;
 
             if (string.IsNullOrWhiteSpace(data))
