@@ -21,6 +21,7 @@ namespace FitnessTrackerProject
 
         public MainWindow() { }
 
+        //MainWindow - CheckIsCoach LoadModel ProcessVideo AnalyzeVideo PlayVisiblePreview AnalyzeVideoQuick GetCounterValue SwitchScreen
         public MainWindow(int userId)
         {
             InitializeComponent();
@@ -31,7 +32,6 @@ namespace FitnessTrackerProject
             MainFrame.Navigate(new WorkoutHubUserControl(currentUserId));
             LoadModel();
         }
-
         private bool CheckIsCoach()
         {
             try
@@ -49,7 +49,6 @@ namespace FitnessTrackerProject
                 return false;
             }
         }
-
         private void LoadModel()
         {
             try
@@ -66,7 +65,7 @@ namespace FitnessTrackerProject
             if (_estimator == null) return;
             this.Cursor = System.Windows.Input.Cursors.Wait;
 
-            // 1. SNEAK PEEK: Read the first 2 seconds just to figure out what movement is happening
+            // 1. Read the first 2 seconds just to figure out what movement is happening
             bool initialOrientation = exercise != null && exercise.IsHorizontal;
             List<FrameResult> peekFrames = AnalyzeVideoQuick(video, initialOrientation);
 
@@ -76,31 +75,32 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // 2. DETECT: Let the AI figure out the real exercise from the sneak peek
+            // 2. DETECT: figure out the real exercise from the sneak peek
             double detectScore;
             IExerciseCounter detected = ExerciseRegistry.Detect(peekFrames, out detectScore);
 
             string finalName = detected != null ? detected.Name : (exercise != null ? exercise.Name : "Squat");
             IExerciseCounter counter = ExerciseRegistry.Create(finalName) ?? new SquatCounter();
 
-            // 3. THE FIX: Ask the counter itself what orientation it needs!
+            // 3.get orientation
             bool correctOrientation = counter.IsHorizontal;
 
-            // 4. FULL SILENT SCAN: Scan the whole video perfectly using the correct orientation
+            // 4. scan the whole video
             List<FrameResult> fullFrames = AnalyzeVideo(video, correctOrientation);
 
             this.Cursor = System.Windows.Input.Cursors.Arrow;
             if (fullFrames == null || fullFrames.Count == 0) return;
 
-            // 5. CALIBRATE: Learn the body's exact depth and angles for accurate reps
+            // 5. calibrate: Learn the body's exact depth and angles for accurate reps
             if (counter is SquatCounter sq) sq.Calibrate(fullFrames);
             else if (counter is PushUpCounter pu) pu.Calibrate(fullFrames);
             else if (counter is PullUpCounter pl) pl.Calibrate(fullFrames);
+            else if (counter is DeadliftCounter dl) dl.Calibrate(fullFrames);
 
-            // 6. VISIBLE PLAYBACK: Open window and count live
+            // 6. open window and run it live
             PlayVisiblePreview(video, fullFrames, counter);
 
-            // 7. SAVE TO DB
+            // 7. save to database
             int finalValue = GetCounterValue(counter, _videoFps);
             string note = finalValue > 0 ? "Great workout!" : "Completed";
             bool noteIsGood = finalValue > 0;
@@ -184,10 +184,11 @@ namespace FitnessTrackerProject
                 // Play at the normal speed of the video
                 int delay = isLive ? 1 : Math.Max(1, (int)(1000.0 / _videoFps));
 
+                // oper window for playback
                 Cv2.NamedWindow(AnalysisWindowName, WindowFlags.Normal);
                 Cv2.ResizeWindow(AnalysisWindowName, 640, 360);
 
-                int badFormFrames = 0; // TRACKER FOR FORM ALERTS
+                int badFormFrames = 0;
 
                 using (var frame = new Mat())
                 {
@@ -199,7 +200,7 @@ namespace FitnessTrackerProject
                         FrameResult res = frames[frameIndex];
                         frameIndex++;
 
-                        // Trigger the live counter!
+                        // Trigger the live counter
                         if (res.State != TrackState.Lost && res.Distance != DistanceStatus.TooClose)
                         {
                             counter.Update(res.Keypoints);
@@ -209,10 +210,9 @@ namespace FitnessTrackerProject
                         string counterText = counter.Name == "Plank"
                             ? $"{counter.Name} - {currentVal}s"
                             : $"{counter.Name} - {currentVal}";
-
+                        //draw skeleton
                         PoseDrawer.DrawSkeleton(frame, res.Keypoints);
-
-                        // --- ADVANCED FORM ALERTS LOGIC (Visual Only) ---
+                        //show form status
                         string status = counter.StatusText ?? "";
                         bool isBadForm = status.IndexOf("too low", StringComparison.OrdinalIgnoreCase) >= 0 ||
                                          status.IndexOf("too high", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -220,18 +220,17 @@ namespace FitnessTrackerProject
                         if (isBadForm)
                         {
                             badFormFrames++;
-                            // Trigger alert if bad form lasts for ~0.5 seconds (15 frames at 30fps)
+                            // Trigger if bad form lasts for ~0.5 seconds (15 frames at 30fps)
                             if (badFormFrames > 15)
                             {
-                                // MASSIVE visual alert in the center of the screen
+                                // visual alert in the center of the screen
                                 PoseDrawer.PutText(frame, status.ToUpper() + "!", frame.Rows / 2, 2.0, Scalar.Red, 4);
                             }
                         }
                         else
                         {
-                            badFormFrames = 0; // Reset immediately if form is fixed
+                            badFormFrames = 0; // Reset if form is fixed
                         }
-                        // ------------------------------------------------
 
                         if (res.Distance == DistanceStatus.TooClose)
                         {
@@ -250,6 +249,7 @@ namespace FitnessTrackerProject
                     }
                 }
             }
+            //close window
             Cv2.DestroyWindow(AnalysisWindowName);
         }
         private List<FrameResult> AnalyzeVideoQuick(string video, bool isPlankMode)
@@ -277,6 +277,7 @@ namespace FitnessTrackerProject
                         if (tracker.ReacquiredThisFrame) _estimator.ResetSmoothing();
 
                         DistanceStatus distance = DistanceChecker.Update(keypoints, _estimator.Confidence, frame.Rows);
+                        //returns if tracking good/bad
                         TrackState state = isPlankMode ? TrackState.Tracking : tracker.Update(keypoints, _estimator.Confidence);
 
                         results.Add(new FrameResult
@@ -299,6 +300,7 @@ namespace FitnessTrackerProject
             if (counter is SquatCounter sq) return sq.Count;
             if (counter is PushUpCounter pu) return pu.Count;
             if (counter is PullUpCounter pl) return pl.Count;
+            if (counter is DeadliftCounter dl) return dl.Count;
             return 0;
         }
 

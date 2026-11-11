@@ -29,9 +29,10 @@ namespace FitnessTrackerProject.Scripts
         public bool IsHorizontal { get { return false; } }        // A squat: upright body, and the leg ratio really goes up and down
         public double Match(List<FrameResult> frames)
         {
-            return PoseChecks.RepScore(frames, GetRatio, PoseChecks.IsUpright, MinUsefulRange);
+            return PoseChecks.RepScore(frames, GetRatio,
+                kp => PoseChecks.IsUpright(kp) && !DeadliftCounter.HandsAtHipLevelOrBelow(kp),
+                MinUsefulRange);
         }
-
         /// <summary>
         /// Look at all frames once and set the thresholds from this person's own movement.
         /// We use the 5th and 95th percentile instead of the minimum and maximum, so a single

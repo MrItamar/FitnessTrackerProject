@@ -69,7 +69,7 @@ namespace FitnessTrackerProject
 
         private async void AnalyzeButton_Click(object sender, RoutedEventArgs e)
         {
-            string apiKey = ""; // Replace with your actual Gemini API Key A00Q.A0000b8RN6IncVUH000mxBcIq-vrad000000f4dQSi000000EXSV00j0wF-FcpGC0000DXLg75w
+            string apiKey = ""; // Replace with your actual Gemini API Key 
             string data = DataInput.Text;
 
             if (string.IsNullOrWhiteSpace(data))
@@ -129,54 +129,111 @@ namespace FitnessTrackerProject
             }
         }
 
+
         private async Task<string> AskGeminiAsync(string apiKey, string json)
         {
-            string lastError = "No answer.";
-
             foreach (string model in Models)
             {
                 for (int attempt = 1; attempt <= MaxAttempts; attempt++)
                 {
                     try
                     {
-                        using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, BaseUrl + model + ":generateContent"))
+                        string url = BaseUrl + model + ":generateContent";
+
+                        using (var request = new HttpRequestMessage(
+                            HttpMethod.Post, url))
                         {
                             request.Headers.Add("x-goog-api-key", apiKey);
-                            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                            using (HttpResponseMessage response = await http.SendAsync(request))
+                            request.Content = new StringContent(
+                                json,
+                                Encoding.UTF8,
+                                "application/json");
+
+                            using (HttpResponseMessage response =
+                                await http.SendAsync(request))
                             {
-                                string body = await response.Content.ReadAsStringAsync();
+                                string body =
+                                    await response.Content.ReadAsStringAsync();
 
                                 if (response.IsSuccessStatusCode)
                                 {
-                                    string text = (string)JObject.Parse(body).SelectToken("candidates[0].content.parts[0].text");
-                                    if (string.IsNullOrWhiteSpace(text)) return "Gemini returned no answer.";
-                                    return text;
+                                    JObject result = JObject.Parse(body);
+
+                                    string text = (string)result.SelectToken(
+                                        "candidates[0].content.parts[0].text");
+
+                                    if (!string.IsNullOrWhiteSpace(text))
+                                        return text;
+
+                                    return "Gemini returned an empty response. " +
+                                           "The request may have been blocked.";
                                 }
+
+                                int status = (int)response.StatusCode;
+
+                                string errorMessage =
+                                    (string)JObject.Parse(body)
+                                    .SelectToken("error.message")
+                                    ?? body;
+
+                                // Model not available: try the next model.
+                                if (status == 404)
+                                    break;
+
+                                // Authentication or request errors: stop.
+                                if (status == 400 ||
+                                    status == 401 ||
+                                    status == 403)
+                                {
+                                    return $"Gemini API Error ({status}): " +
+                                           errorMessage;
+                                }
+
+                                // Retry temporary errors only.
+                                if (status != 429 && status < 500)
+                                {
+                                    return $"Gemini API Error ({status}): " +
+                                           errorMessage;
+                                }
+
+                                if (attempt == MaxAttempts)
+                                    break;
+
+                                ResultOutput.Text =
+                                    $"Gemini is busy. Retrying... " +
+                                    $"({attempt}/{MaxAttempts})";
+
+                                int waitMs = 1000 * (int)Math.Pow(2, attempt - 1);
+
+                                await Task.Delay(waitMs);
                             }
                         }
                     }
                     catch (TaskCanceledException)
                     {
-                        lastError = "The request timed out.";
+                        if (attempt == MaxAttempts)
+                            break;
+
+                        await Task.Delay(1000 * attempt);
                     }
                     catch (HttpRequestException ex)
                     {
-                        lastError = "Network problem: " + ex.Message;
-                    }
+                        if (attempt == MaxAttempts)
+                            return "Network error: " + ex.Message;
 
-                    // FIXED: attempt - 1 (Typo resolved)
-                    if (attempt < MaxAttempts)
+                        await Task.Delay(1000 * attempt);
+                    }
+                    catch (JsonException ex)
                     {
-                        int waitMs = 1000 * (int)Math.Pow(2, attempt - 1) + random.Next(0, 500);
-                        ResultOutput.Text = $"Gemini is busy, trying again... ({attempt}/{MaxAttempts})";
-                        await Task.Delay(waitMs);
+                        return "Invalid response from Gemini: " + ex.Message;
                     }
                 }
             }
 
-            return lastError + "\n\nGemini is probably overloaded right now. Please try again in a minute.";
+            return "All available Gemini models failed. " +
+                   "Please check your API configuration and try again.";
         }
+
     }
 }

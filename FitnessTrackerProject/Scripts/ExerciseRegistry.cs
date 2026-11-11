@@ -18,6 +18,7 @@ namespace FitnessTrackerProject.Scripts
             () => new SquatCounter(),
             () => new PullUpCounter(),
             () => new PushUpCounter(),
+            () => new DeadliftCounter(),
             () => new PlankChecker()
         };
 

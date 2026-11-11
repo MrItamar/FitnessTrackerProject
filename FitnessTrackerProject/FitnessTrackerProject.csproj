@@ -161,6 +161,7 @@
     <Compile Include="Models\Trainee.cs" />
     <Compile Include="Scripts\CoachRepository.cs" />
     <Compile Include="Scripts\DatabaseHelper.cs" />
+    <Compile Include="Scripts\DeadliftCounter.cs" />
     <Compile Include="Scripts\DistanceChecker.cs" />
     <Compile Include="Scripts\ExerciseRegistry.cs" />
     <Compile Include="Scripts\ExercisePool.cs" />
