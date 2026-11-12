@@ -38,7 +38,7 @@ namespace FitnessTrackerProject
             }
         }
 
-        /// <summary>Shows the trainee fields or the coach fields, depending on the chosen role.</summary>
+        //Shows the trainee fields or the coach fields, depending on the chosen role.
         private void RoleComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             // The panels don't exist yet while the window is still being built
@@ -50,6 +50,7 @@ namespace FitnessTrackerProject
             TraineePanel.Visibility = role == "Trainee" ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        //Protecting the password using hash
         private string HashPassword(string rawPassword)
         {
             using (SHA256 sha256Hash = SHA256.Create())
@@ -63,7 +64,7 @@ namespace FitnessTrackerProject
                 return builder.ToString();
             }
         }
-
+        //saving profile 
         private void SaveProfile_Click(object sender, RoutedEventArgs e)
         {
             string name = NameTextBox.Text;
@@ -71,7 +72,7 @@ namespace FitnessTrackerProject
             string gender = GenderComboBox.Text;
             string role = RoleComboBox.Text;
             string password = PasswordInput.Password;
-
+            //checking fields
             if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(ageText) ||
                 string.IsNullOrWhiteSpace(role) || string.IsNullOrWhiteSpace(password))
             {
@@ -80,7 +81,7 @@ namespace FitnessTrackerProject
             }
 
             BaseUser newUser;
-
+            //checking role
             if (role == "Coach")
             {
                 newUser = new Coach();
@@ -90,6 +91,7 @@ namespace FitnessTrackerProject
                 newUser = new Trainee();
             }
 
+            //formating the user
             try
             {
                 newUser.Username = name;
@@ -108,10 +110,10 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // Role-specific fields (checked before anything touches the database)
+            // Role specific fields
             double height = 0, weight = 0;
             string goal = "", specialty = "", bio = "";
-
+            //update variable from UI fields
             if (role == "Coach")
             {
                 specialty = SpecialtyTextBox.Text.Trim();
@@ -161,9 +163,10 @@ namespace FitnessTrackerProject
 
                 string securedPassword = HashPassword(password);
 
-                // Saves the user AND the trainee/coach row together (all or nothing)
+                // Saves the user and the trainee/coach row together
                 int newUserId = SaveNewUser(newUser, securedPassword, role, height, weight, goal, specialty, bio);
 
+                //profile successfully created
                 MessageBox.Show($"{newUser.GetUserRole()} profile successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
                 MainWindow mainAppWindow = new MainWindow(newUserId);
@@ -176,15 +179,11 @@ namespace FitnessTrackerProject
             }
         }
 
-        /// <summary>
-        /// Inserts the user and the matching Trainees/Trainers row on ONE connection, in ONE transaction.
-        /// Access only gives the new ID (@@IDENTITY) on the same connection as the insert,
-        /// and the transaction makes sure we never save a user without their trainee/coach row.
-        /// Returns the new user's ID.
-        /// </summary>
+        // Inserts the user and the matching Trainees/Trainers row and returns the new user's ID.
         private int SaveNewUser(BaseUser user, string passwordHash, string role,
                                 double height, double weight, string goal, string specialty, string bio)
         {
+            //opening connection
             using (OleDbConnection connection = DatabaseHelper.GetConnection())
             {
                 connection.Open();
@@ -193,7 +192,8 @@ namespace FitnessTrackerProject
                 {
                     try
                     {
-                        Run(connection, transaction,
+                        //inserting the user info
+                        DatabaseHelper.ExecuteNonQueryWithCurrentConnection(connection, transaction,
                             "INSERT INTO Users (Username, Age, Gender, UserRole, ProfilePicPath, [Password]) VALUES (?, ?, ?, ?, ?, ?)",
                             user.Username, user.Age, user.Gender, user.GetUserRole(), user.ProfilePicPath ?? "", passwordHash);
 
@@ -206,44 +206,33 @@ namespace FitnessTrackerProject
 
                         if (userId == 0)
                             throw new Exception("Could not get the new user ID.");
-
+                        //Inserting specific fields in the correct user id
                         if (role == "Coach")
                         {
-                            Run(connection, transaction,
+                            DatabaseHelper.ExecuteNonQueryWithCurrentConnection(connection, transaction,
                                 "INSERT INTO Trainers (UserID, Specialty, Bio) VALUES (?, ?, ?)",
                                 userId, specialty, bio);
                         }
                         else
                         {
-                            Run(connection, transaction,
+                            DatabaseHelper.ExecuteNonQueryWithCurrentConnection(connection, transaction,
                                 "INSERT INTO Trainees (UserID, Height, Weight, FitnessGoal) VALUES (?, ?, ?, ?)",
                                 userId, height, weight, goal);
                         }
 
-                        transaction.Commit();   // everything worked: make it permanent
+                        transaction.Commit();
                         return userId;
                     }
                     catch
                     {
-                        transaction.Rollback(); // something failed: undo everything
+                        transaction.Rollback(); // something failed so undo everything
                         throw;                  // pass the error up so the screen can show it
                     }
                 }
             }
         }
 
-        /// <summary>Runs one INSERT. Access fills the ? marks in ORDER, so the values must be in the same order.</summary>
-        private static void Run(OleDbConnection connection, OleDbTransaction transaction, string sql, params object[] values)
-        {
-            using (var command = new OleDbCommand(sql, connection, transaction))
-            {
-                foreach (object value in values)
-                    command.Parameters.AddWithValue("?", value);
-
-                command.ExecuteNonQuery();
-            }
-        }
-
+        //After signing up go to the log-in page
         private void GoToLogin_Click(object sender, RoutedEventArgs e)
         {
             LoginWindow loginWindow = new LoginWindow();

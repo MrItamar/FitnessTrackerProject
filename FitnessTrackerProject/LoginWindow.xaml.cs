@@ -13,7 +13,7 @@ namespace FitnessTrackerProject
         {
             InitializeComponent();
         }
-
+        //using hash in order to protect user password
         private string HashPassword(string rawPassword)
         {
             using (SHA256 sha256Hash = SHA256.Create())
@@ -43,19 +43,20 @@ namespace FitnessTrackerProject
 
             try
             {
-                // Uses DatabaseHelper to get the connection automatically
+                // Uses DatabaseHelper to get the connection
                 using (OleDbConnection connection = DatabaseHelper.GetConnection())
                 {
                     connection.Open();
-
+                    //query for selecting the id with the current username and password
                     string query = "SELECT ID FROM Users WHERE Username = @Name AND [Password] = @Password";
                     using (OleDbCommand command = new OleDbCommand(query, connection))
                     {
+                        //running the query
                         command.Parameters.AddWithValue("@Name", username);
                         command.Parameters.AddWithValue("@Password", securedPassword);
 
                         object result = command.ExecuteScalar();
-
+                        //if the user exists log in and go to the MainWindow if not throw a MessageBox explaining 
                         if (result != null && result != DBNull.Value)
                         {
                             int foundUserId = Convert.ToInt32(result);
@@ -78,7 +79,7 @@ namespace FitnessTrackerProject
                 MessageBox.Show($"Database error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
+        //go to signUp if doesnt have a user already
         private void GoToSignUp_Click(object sender, RoutedEventArgs e)
         {
             SignUpWindow signUpWindow = new SignUpWindow();
