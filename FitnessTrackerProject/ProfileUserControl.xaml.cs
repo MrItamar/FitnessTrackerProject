@@ -27,24 +27,21 @@ namespace FitnessTrackerProject
 
         private void LoadUserProfile()
         {
-            string query = @"SELECT Users.Username, Users.Age, Users.Gender, Users.ProfilePicPath, Users.UserRole,
-                     Trainees.Height, Trainees.Weight, Trainees.FitnessGoal,
-                     Trainers.Specialty, Trainers.Bio
-                     FROM (Users LEFT JOIN Trainees ON Users.ID = Trainees.UserID)
-                     LEFT JOIN Trainers ON Users.ID = Trainers.UserID
-                     WHERE Users.ID = ?";
-
             using (OleDbConnection conn = DatabaseHelper.GetConnection())
             {
-                using (OleDbCommand cmd = new OleDbCommand(query, conn))
+                conn.Open();
+
+                // Simple query for basic User info
+                string userQuery = "SELECT Username, Age, Gender, ProfilePicPath, UserRole FROM Users WHERE ID = ?";
+                string role = "";
+
+                using (OleDbCommand cmd = new OleDbCommand(userQuery, conn))
                 {
                     cmd.Parameters.AddWithValue("?", currentUserId);
-                    conn.Open();
                     using (OleDbDataReader reader = cmd.ExecuteReader())
                     {
                         if (reader.Read())
                         {
-                            // Fields everyone has
                             txtUsername.Text = reader["Username"]?.ToString();
                             txtAge.Text = reader["Age"]?.ToString();
                             SelectOrAdd(cmbGender, reader["Gender"]?.ToString());
@@ -55,19 +52,42 @@ namespace FitnessTrackerProject
                                 imgProfile.Source = new BitmapImage(new Uri(picPath));
                             }
 
-                            // Show only the fields of this user's role
-                            string role = reader["UserRole"]?.ToString().Trim();
-                            bool isCoach = string.Equals(role, "Coach", StringComparison.OrdinalIgnoreCase);
+                            role = reader["UserRole"]?.ToString().Trim();
+                        }
+                    }
+                }
 
-                            panelCoach.Visibility = isCoach ? Visibility.Visible : Visibility.Collapsed;
-                            panelTrainee.Visibility = isCoach ? Visibility.Collapsed : Visibility.Visible;
+                // Simple separate queries based on the role
+                bool isCoach = string.Equals(role, "Coach", StringComparison.OrdinalIgnoreCase);
+                panelCoach.Visibility = isCoach ? Visibility.Visible : Visibility.Collapsed;
+                panelTrainee.Visibility = isCoach ? Visibility.Collapsed : Visibility.Visible;
 
-                            if (isCoach)
+                if (isCoach)
+                {
+                    string coachQuery = "SELECT Specialty, Bio FROM Trainers WHERE UserID = ?";
+                    using (OleDbCommand cmd = new OleDbCommand(coachQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("?", currentUserId);
+                        using (OleDbDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
                             {
                                 txtSpecialty.Text = reader["Specialty"]?.ToString();
                                 txtBio.Text = reader["Bio"]?.ToString();
                             }
-                            else
+                        }
+                    }
+                }
+                else
+                {
+                    //query for trainee stats
+                    string traineeQuery = "SELECT Height, Weight, FitnessGoal FROM Trainees WHERE UserID = ?";
+                    using (OleDbCommand cmd = new OleDbCommand(traineeQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("?", currentUserId);
+                        using (OleDbDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
                             {
                                 txtHeight.Text = reader["Height"]?.ToString();
                                 txtWeight.Text = reader["Weight"]?.ToString();
@@ -92,7 +112,7 @@ namespace FitnessTrackerProject
 
         private void BtnSave_Click(object sender, RoutedEventArgs e)
         {
-            // ---- 1. Check the input BEFORE touching the database ----
+            // Check the input before touching the database
             if (string.IsNullOrWhiteSpace(txtUsername.Text))
             {
                 MessageBox.Show("Please enter a username.");
@@ -121,7 +141,7 @@ namespace FitnessTrackerProject
             string gender = ItemText(cmbGender.SelectedItem) ?? "";
             string fitnessGoal = cmbFitnessGoal.Text;
 
-            // ---- 2. Save ----
+            //  Save to db
             try
             {
                 using (OleDbConnection conn = DatabaseHelper.GetConnection())
@@ -168,17 +188,13 @@ namespace FitnessTrackerProject
             }
         }
 
-        // =====================================================================
-        //  Input restrictions (typing letters in a number box is blocked)
-        // =====================================================================
-
-        /// <summary>Age box: digits only.</summary>
+        //  Input restrictions
         private void Digits_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !e.Text.All(char.IsDigit);
         }
 
-        /// <summary>Height / weight boxes: up to 3 digits, optionally a dot and up to 2 decimals.</summary>
+        //weight boxes: up to 3 digits, optionally a dot and up to 2 decimals
         private void Decimal_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             TextBox box = (TextBox)sender;
@@ -191,11 +207,7 @@ namespace FitnessTrackerProject
             e.Handled = !Regex.IsMatch(proposed, @"^\d{0,3}([.,]\d{0,2})?$");
         }
 
-        // =====================================================================
-        //  Small helpers
-        // =====================================================================
-
-        /// <summary>Empty text counts as 0. Accepts both "70.5" and "70,5".</summary>
+        //Empty text counts as 0. Accepts both "70.5" and "70,5"
         private static bool TryParseNumber(string text, out double value)
         {
             value = 0.0;
@@ -205,7 +217,7 @@ namespace FitnessTrackerProject
                 NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
-        /// <summary>The visible text of a dropdown item.</summary>
+        // the visible text of a dropdown item.
         private static string ItemText(object item)
         {
             ComboBoxItem comboItem = item as ComboBoxItem;
@@ -213,7 +225,7 @@ namespace FitnessTrackerProject
             return content?.ToString();
         }
 
-        /// <summary>Selects the item with this text. If the list doesn't have it, adds it first.</summary>
+        // Selects the item with this text. If the list doesn't have it, adds it first.
         private static void SelectOrAdd(ComboBox box, string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return;
@@ -233,91 +245,85 @@ namespace FitnessTrackerProject
             box.SelectedItem = extra;
         }
 
-        private void BtnDeleteAccount_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBoxResult result = MessageBox.Show(
-                "Are you sure you want to permanently delete your account?\n\n" +
-                "This action cannot be undone.",
-                "Delete Account",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
+        //private void BtnDeleteAccount_Click(object sender, RoutedEventArgs e)
+        //{
+        //    MessageBoxResult result = MessageBox.Show(
+        //        "Are you sure you want to permanently delete your account?\n\n" +
+        //        "This action cannot be undone.",
+        //        "Delete Account",
+        //        MessageBoxButton.YesNo,
+        //        MessageBoxImage.Warning);
 
-            if (result != MessageBoxResult.Yes)
-                return;
+        //    if (result != MessageBoxResult.Yes)
+        //        return;
 
-            try
-            {
-                using (OleDbConnection conn = DatabaseHelper.GetConnection())
-                {
-                    conn.Open();
+        //    try
+        //    {
+        //        using (OleDbConnection conn = DatabaseHelper.GetConnection())
+        //        {
+        //            conn.Open();
 
-                    using (OleDbTransaction transaction = conn.BeginTransaction())
-                    {
-                        try
-                        {//TODO: DeleteMeaagai
-                            using (OleDbCommand cmd = new OleDbCommand(
-                            "DELETE FROM Messages WHERE UserID = ?", conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("?", currentUserId);
-                                cmd.ExecuteNonQuery();
-                            }
-                            // Delete the role-specific records first
-                            using (OleDbCommand cmd = new OleDbCommand(
-                                "DELETE FROM Trainees WHERE UserID = ?", conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("?", currentUserId);
-                                cmd.ExecuteNonQuery();
-                            }
+        //            using (OleDbTransaction transaction = conn.BeginTransaction())
+        //            {
+        //                try
+        //                {
+        //                    // Delete the role-specific records first
+        //                    using (OleDbCommand cmd = new OleDbCommand(
+        //                        "DELETE FROM Trainees WHERE UserID = ?", conn, transaction))
+        //                    {
+        //                        cmd.Parameters.AddWithValue("?", currentUserId);
+        //                        cmd.ExecuteNonQuery();
+        //                    }
 
-                            using (OleDbCommand cmd = new OleDbCommand(
-                                "DELETE FROM Trainers WHERE UserID = ?", conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("?", currentUserId);
-                                cmd.ExecuteNonQuery();
-                            }
+        //                    using (OleDbCommand cmd = new OleDbCommand(
+        //                        "DELETE FROM Trainers WHERE UserID = ?", conn, transaction))
+        //                    {
+        //                        cmd.Parameters.AddWithValue("?", currentUserId);
+        //                        cmd.ExecuteNonQuery();
+        //                    }
 
-                            // Delete the main user record
-                            using (OleDbCommand cmd = new OleDbCommand(
-                                "DELETE FROM Users WHERE ID = ?", conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("?", currentUserId);
+        //                    // Delete the main user record
+        //                    using (OleDbCommand cmd = new OleDbCommand(
+        //                        "DELETE FROM Users WHERE ID = ?", conn, transaction))
+        //                    {
+        //                        cmd.Parameters.AddWithValue("?", currentUserId);
 
-                                int rowsAffected = cmd.ExecuteNonQuery();
+        //                        int rowsAffected = cmd.ExecuteNonQuery();
 
-                                if (rowsAffected == 0)
-                                    throw new Exception("The user account could not be found.");
-                            }
+        //                        if (rowsAffected == 0)
+        //                            throw new Exception("The user account could not be found.");
+        //                    }
 
-                            transaction.Commit();
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw;
-                        }
-                    }
-                }
+        //                    transaction.Commit();
+        //                }
+        //                catch
+        //                {
+        //                    transaction.Rollback();
+        //                    throw;
+        //                }
+        //            }
+        //        }
 
-                MessageBox.Show(
-                    "Your account has been successfully deleted.",
-                    "Account Deleted",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+        //        MessageBox.Show(
+        //            "Your account has been successfully deleted.",
+        //            "Account Deleted",
+        //            MessageBoxButton.OK,
+        //            MessageBoxImage.Information);
 
-                // Return to the login window
-                LoginWindow loginWindow = new LoginWindow();
-                loginWindow.Show();
+        //        // Return to the login window
+        //        LoginWindow loginWindow = new LoginWindow();
+        //        loginWindow.Show();
 
-                Window.GetWindow(this)?.Close();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    "Could not delete your account: " + ex.Message,
-                    "Deletion Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
-        }
+        //        Window.GetWindow(this)?.Close();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        MessageBox.Show(
+        //            "Could not delete your account: " + ex.Message,
+        //            "Deletion Error",
+        //            MessageBoxButton.OK,
+        //            MessageBoxImage.Error);
+        //    }
+        //}
     }
 }
