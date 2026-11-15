@@ -245,85 +245,85 @@ namespace FitnessTrackerProject
             box.SelectedItem = extra;
         }
 
-        //private void BtnDeleteAccount_Click(object sender, RoutedEventArgs e)
-        //{
-        //    MessageBoxResult result = MessageBox.Show(
-        //        "Are you sure you want to permanently delete your account?\n\n" +
-        //        "This action cannot be undone.",
-        //        "Delete Account",
-        //        MessageBoxButton.YesNo,
-        //        MessageBoxImage.Warning);
+        private void BtnDeleteAccount_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBoxResult result = MessageBox.Show(
+                "Are you sure you want to permanently delete your account?\n\n" +
+                "This action cannot be undone.",
+                "Delete Account",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
 
-        //    if (result != MessageBoxResult.Yes)
-        //        return;
+            if (result != MessageBoxResult.Yes)
+                return;
 
-        //    try
-        //    {
-        //        using (OleDbConnection conn = DatabaseHelper.GetConnection())
-        //        {
-        //            conn.Open();
+            try
+            {
+                using (OleDbConnection conn = DatabaseHelper.GetConnection())
+                {
+                    conn.Open();
 
-        //            using (OleDbTransaction transaction = conn.BeginTransaction())
-        //            {
-        //                try
-        //                {
-        //                    // Delete the role-specific records first
-        //                    using (OleDbCommand cmd = new OleDbCommand(
-        //                        "DELETE FROM Trainees WHERE UserID = ?", conn, transaction))
-        //                    {
-        //                        cmd.Parameters.AddWithValue("?", currentUserId);
-        //                        cmd.ExecuteNonQuery();
-        //                    }
+                    using (OleDbTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Delete the role-specific records first
+                            using (OleDbCommand cmd = new OleDbCommand(
+                                "DELETE FROM Trainees WHERE UserID = ?", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("?", currentUserId);
+                                cmd.ExecuteNonQuery();
+                            }
 
-        //                    using (OleDbCommand cmd = new OleDbCommand(
-        //                        "DELETE FROM Trainers WHERE UserID = ?", conn, transaction))
-        //                    {
-        //                        cmd.Parameters.AddWithValue("?", currentUserId);
-        //                        cmd.ExecuteNonQuery();
-        //                    }
+                            using (OleDbCommand cmd = new OleDbCommand(
+                                "DELETE FROM Trainers WHERE UserID = ?", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("?", currentUserId);
+                                cmd.ExecuteNonQuery();
+                            }
 
-        //                    // Delete the main user record
-        //                    using (OleDbCommand cmd = new OleDbCommand(
-        //                        "DELETE FROM Users WHERE ID = ?", conn, transaction))
-        //                    {
-        //                        cmd.Parameters.AddWithValue("?", currentUserId);
+                            // Delete the main user record
+                            using (OleDbCommand cmd = new OleDbCommand(
+                                "DELETE FROM Users WHERE ID = ?", conn, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("?", currentUserId);
 
-        //                        int rowsAffected = cmd.ExecuteNonQuery();
+                                int rowsAffected = cmd.ExecuteNonQuery();
 
-        //                        if (rowsAffected == 0)
-        //                            throw new Exception("The user account could not be found.");
-        //                    }
+                                if (rowsAffected == 0)
+                                    throw new Exception("The user account could not be found.");
+                            }
 
-        //                    transaction.Commit();
-        //                }
-        //                catch
-        //                {
-        //                    transaction.Rollback();
-        //                    throw;
-        //                }
-        //            }
-        //        }
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
 
-        //        MessageBox.Show(
-        //            "Your account has been successfully deleted.",
-        //            "Account Deleted",
-        //            MessageBoxButton.OK,
-        //            MessageBoxImage.Information);
+                MessageBox.Show(
+                    "Your account has been successfully deleted.",
+                    "Account Deleted",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
 
-        //        // Return to the login window
-        //        LoginWindow loginWindow = new LoginWindow();
-        //        loginWindow.Show();
+                // Return to the login window
+                LoginWindow loginWindow = new LoginWindow();
+                loginWindow.Show();
 
-        //        Window.GetWindow(this)?.Close();
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        MessageBox.Show(
-        //            "Could not delete your account: " + ex.Message,
-        //            "Deletion Error",
-        //            MessageBoxButton.OK,
-        //            MessageBoxImage.Error);
-        //    }
-        //}
+                Window.GetWindow(this)?.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Could not delete your account: " + ex.Message,
+                    "Deletion Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
     }
 }
