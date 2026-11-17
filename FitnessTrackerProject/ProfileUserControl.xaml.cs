@@ -31,7 +31,7 @@ namespace FitnessTrackerProject
             {
                 conn.Open();
 
-                // Simple query for basic User info
+                // select user info
                 string userQuery = "SELECT Username, Age, Gender, ProfilePicPath, UserRole FROM Users WHERE ID = ?";
                 string role = "";
 
@@ -57,13 +57,14 @@ namespace FitnessTrackerProject
                     }
                 }
 
-                // Simple separate queries based on the role
+                //Fill in role specific data
                 bool isCoach = string.Equals(role, "Coach", StringComparison.OrdinalIgnoreCase);
                 panelCoach.Visibility = isCoach ? Visibility.Visible : Visibility.Collapsed;
                 panelTrainee.Visibility = isCoach ? Visibility.Collapsed : Visibility.Visible;
 
                 if (isCoach)
                 {
+                    //Fill coach data
                     string coachQuery = "SELECT Specialty, Bio FROM Trainers WHERE UserID = ?";
                     using (OleDbCommand cmd = new OleDbCommand(coachQuery, conn))
                     {
@@ -80,7 +81,7 @@ namespace FitnessTrackerProject
                 }
                 else
                 {
-                    //query for trainee stats
+                    //Fill Trainee data
                     string traineeQuery = "SELECT Height, Weight, FitnessGoal FROM Trainees WHERE UserID = ?";
                     using (OleDbCommand cmd = new OleDbCommand(traineeQuery, conn))
                     {
@@ -91,7 +92,7 @@ namespace FitnessTrackerProject
                             {
                                 txtHeight.Text = reader["Height"]?.ToString();
                                 txtWeight.Text = reader["Weight"]?.ToString();
-                                cmbFitnessGoal.Text = reader["FitnessGoal"]?.ToString();
+                                SelectOrAdd(cmbFitnessGoal, reader["FitnessGoal"]?.ToString());
                             }
                         }
                     }
@@ -99,6 +100,7 @@ namespace FitnessTrackerProject
             }
         }
 
+        //selecting a profile picture
         private void BtnChangePic_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog ofd = new OpenFileDialog();
@@ -139,6 +141,7 @@ namespace FitnessTrackerProject
             }
 
             string gender = ItemText(cmbGender.SelectedItem) ?? "";
+            //fitnessGoal is free to edit
             string fitnessGoal = cmbFitnessGoal.Text;
 
             //  Save to db
@@ -167,6 +170,16 @@ namespace FitnessTrackerProject
                         cmdTrainees.Parameters.AddWithValue("?", currentUserId);
                         cmdTrainees.ExecuteNonQuery();
                     }
+
+                    string updateCoach = "UPDATE Trainers SET Specialty = ?, Bio = ? WHERE UserID = ?";
+                    using (OleDbCommand cmdTrainees = new OleDbCommand(updateTrainees, conn))
+                    {
+                        cmdTrainee.Parameters.AddWithValue("?", txtSpecialty.Text.Trim());
+                        cmdTrainees.Parameters.AddWithValue("?", txtBio.Text.Trim());
+                        cmdTrainees.Parameters.AddWithValue("?", currentUserId);
+                        cmdTrainees.ExecuteNonQuery();
+                    }
+                    //TODO: for coach add bio and specialty
 
                     if (!string.IsNullOrEmpty(newPicPath))
                     {
@@ -199,15 +212,16 @@ namespace FitnessTrackerProject
         {
             TextBox box = (TextBox)sender;
 
-            // What the text would look like AFTER this keystroke
+            // What the text would look like typing this keystroke
             string proposed = box.Text
                 .Remove(box.SelectionStart, box.SelectionLength)
                 .Insert(box.SelectionStart, e.Text);
-
+            //checking proposed for 3 digits: \d{0,3} and two decimals after a , or .: [.,]\d{0,2})?
+            //if true this block the keypress
             e.Handled = !Regex.IsMatch(proposed, @"^\d{0,3}([.,]\d{0,2})?$");
         }
 
-        //Empty text counts as 0. Accepts both "70.5" and "70,5"
+        //Empty text counts as 0, accepts both "70.5" and "70,5"
         private static bool TryParseNumber(string text, out double value)
         {
             value = 0.0;
@@ -225,7 +239,7 @@ namespace FitnessTrackerProject
             return content?.ToString();
         }
 
-        // Selects the item with this text. If the list doesn't have it, adds it first.
+        // selects the item with this text, if the list doesn't have it, adds it first.
         private static void SelectOrAdd(ComboBox box, string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return;
@@ -245,6 +259,7 @@ namespace FitnessTrackerProject
             box.SelectedItem = extra;
         }
 
+        //deleting account
         private void BtnDeleteAccount_Click(object sender, RoutedEventArgs e)
         {
             MessageBoxResult result = MessageBox.Show(
