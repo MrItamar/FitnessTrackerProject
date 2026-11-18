@@ -171,13 +171,13 @@ namespace FitnessTrackerProject
                         cmdTrainees.ExecuteNonQuery();
                     }
 
-                    string updateCoach = "UPDATE Trainers SET Specialty = ?, Bio = ? WHERE UserID = ?";
-                    using (OleDbCommand cmdTrainees = new OleDbCommand(updateTrainees, conn))
+                    string updateTrainers = "UPDATE Trainers SET Specialty = ?, Bio = ? WHERE UserID = ?";
+                    using (OleDbCommand cmdTrainers = new OleDbCommand(updateTrainers, conn))
                     {
-                        cmdTrainee.Parameters.AddWithValue("?", txtSpecialty.Text.Trim());
-                        cmdTrainees.Parameters.AddWithValue("?", txtBio.Text.Trim());
-                        cmdTrainees.Parameters.AddWithValue("?", currentUserId);
-                        cmdTrainees.ExecuteNonQuery();
+                        cmdTrainers.Parameters.AddWithValue("?", txtSpecialty.Text.Trim());
+                        cmdTrainers.Parameters.AddWithValue("?", txtBio.Text.Trim());
+                        cmdTrainers.Parameters.AddWithValue("?", currentUserId);
+                        cmdTrainers.ExecuteNonQuery();
                     }
                     //TODO: for coach add bio and specialty
 

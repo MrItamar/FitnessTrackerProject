@@ -65,7 +65,7 @@ namespace FitnessTrackerProject
             if (_estimator == null) return;
             this.Cursor = System.Windows.Input.Cursors.Wait;
 
-            // 1. Read the first 2 seconds just to figure out what movement is happening
+            // Read the first 2 seconds just to figure out what movement is happening
             bool initialOrientation = exercise != null && exercise.IsHorizontal;
             List<FrameResult> peekFrames = AnalyzeVideoQuick(video, initialOrientation);
 
@@ -75,32 +75,32 @@ namespace FitnessTrackerProject
                 return;
             }
 
-            // 2. DETECT: figure out the real exercise from the sneak peek
+            // figure out the real exercise from the short clip
             double detectScore;
             IExerciseCounter detected = ExerciseRegistry.Detect(peekFrames, out detectScore);
 
             string finalName = detected != null ? detected.Name : (exercise != null ? exercise.Name : "Squat");
             IExerciseCounter counter = ExerciseRegistry.Create(finalName) ?? new SquatCounter();
 
-            // 3.get orientation
+            // get orientation
             bool correctOrientation = counter.IsHorizontal;
 
-            // 4. scan the whole video
+            // scan the whole video
             List<FrameResult> fullFrames = AnalyzeVideo(video, correctOrientation);
 
             this.Cursor = System.Windows.Input.Cursors.Arrow;
             if (fullFrames == null || fullFrames.Count == 0) return;
 
-            // 5. calibrate: Learn the body's exact depth and angles for accurate reps
+            // calibrate: Learn the body's exact depth and angles for accurate reps
             if (counter is SquatCounter sq) sq.Calibrate(fullFrames);
             else if (counter is PushUpCounter pu) pu.Calibrate(fullFrames);
             else if (counter is PullUpCounter pl) pl.Calibrate(fullFrames);
             else if (counter is DeadliftCounter dl) dl.Calibrate(fullFrames);
 
-            // 6. open window and run it live
+            // open window and run it live
             PlayVisiblePreview(video, fullFrames, counter);
 
-            // 7. save to database
+            // save to database
             int finalValue = GetCounterValue(counter, _videoFps);
             string note = finalValue > 0 ? "Great workout!" : "Completed";
             bool noteIsGood = finalValue > 0;
@@ -220,7 +220,7 @@ namespace FitnessTrackerProject
                         if (isBadForm)
                         {
                             badFormFrames++;
-                            // Trigger if bad form lasts for ~0.5 seconds (15 frames at 30fps)
+                            // Trigger if bad form lasts for about 0.5 seconds (15 frames at 30fps)
                             if (badFormFrames > 15)
                             {
                                 // visual alert in the center of the screen
@@ -249,7 +249,7 @@ namespace FitnessTrackerProject
                     }
                 }
             }
-            //close window
+            //clossse window
             Cv2.DestroyWindow(AnalysisWindowName);
         }
         private List<FrameResult> AnalyzeVideoQuick(string video, bool isPlankMode)
