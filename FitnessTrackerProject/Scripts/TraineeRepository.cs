@@ -121,11 +121,14 @@ namespace FitnessTrackerProject.Scripts
         }
 
         /// <summary>The IDs of all programs the trainee added.</summary>
-        public static HashSet<int> GetProgramIds(int traineeId)
+        public static HashSet<int> GetProgramIds(int userId)
         {
             EnsureSchema();
 
             HashSet<int> ids = new HashSet<int>();
+            int traineeId = GetTraineeIdByUserId(userId);
+            if (traineeId == -1) return ids;
+
             DataTable dt = DatabaseHelper.ExecuteQueryTable(
                 "SELECT ProgramID FROM TraineePrograms WHERE TraineeID = ?",
                 p => p.AddWithValue("?", traineeId));
@@ -211,9 +214,12 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
 }
 
         /// <summary>The programs this trainee added.</summary>
-        public static List<ProgramChoiceItem> GetChosenPrograms(int traineeId)
+        public static List<ProgramChoiceItem> GetChosenPrograms(int userId)
         {
             EnsureSchema();
+
+            int traineeId = GetTraineeIdByUserId(userId);
+            if (traineeId == -1) return new List<ProgramChoiceItem>();
 
             DataTable dt = DatabaseHelper.ExecuteQueryTable(
                 ProgramSelect +
@@ -345,13 +351,16 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
                     p.AddWithValue("?", traineeId);
                 });
         }
-
-        public static void AddProgram(int traineeId, int programId)
+        public static void AddProgram(int userId, int programId)
         {
             EnsureSchema();
 
+            int traineeId = GetTraineeIdByUserId(userId);
+            if (traineeId == -1)
+                throw new InvalidOperationException("No Trainee profile found for this user.");
+
             // Don't add the same program twice
-            HashSet<int> existing = GetProgramIds(traineeId);
+            HashSet<int> existing = GetProgramIds(userId);
             if (existing.Contains(programId)) return;
 
             DatabaseHelper.ExecuteNonQuery(
@@ -362,10 +371,23 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
                     p.AddWithValue("?", programId);
                 });
         }
-
-        public static void RemoveProgram(int traineeId, int programId)
+        public static int GetTraineeIdByUserId(int userId)
+        {
+            object result = DatabaseHelper.ExecuteScalar(
+                "SELECT TraineeID FROM Trainees WHERE UserID = ?",
+                p => p.AddWithValue("?", userId));
+            if (result != null && result != DBNull.Value)
+            {
+                return Convert.ToInt32(result);
+            }
+            return -1;
+        }
+        public static void RemoveProgram(int userId, int programId)
         {
             EnsureSchema();
+
+            int traineeId = GetTraineeIdByUserId(userId);
+            if (traineeId == -1) return;
 
             DatabaseHelper.ExecuteNonQuery(
                 "DELETE FROM TraineePrograms WHERE TraineeID = ? AND ProgramID = ?",
@@ -375,7 +397,6 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
                     p.AddWithValue("?", programId);
                 });
         }
-
         // ================================================================
         // Small helpers
         // ================================================================
