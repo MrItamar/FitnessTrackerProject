@@ -179,7 +179,6 @@ namespace FitnessTrackerProject
                         cmdTrainers.Parameters.AddWithValue("?", currentUserId);
                         cmdTrainers.ExecuteNonQuery();
                     }
-                    //TODO: for coach add bio and specialty
 
                     if (!string.IsNullOrEmpty(newPicPath))
                     {

@@ -6,11 +6,11 @@ namespace FitnessTrackerProject.Models
     // They MUST be a Coach or a Trainee.
     public abstract class BaseUser
     {
-        // 1. ENCAPSULATION: Private fields hidden from the rest of the app
+        // Private fields hidden from the rest of the app
         private string _username;
         private int _age;
 
-        // 2. ENCAPSULATION: Public properties to safely access the data
+        // Public properties to safely access the data
         public string Username
         {
             get { return _username; }
@@ -35,7 +35,7 @@ namespace FitnessTrackerProject.Models
         public string Gender { get; set; }
         public string ProfilePicPath { get; set; }
 
-        // 3. POLYMORPHISM: An abstract method that child classes MUST override
+        // An abstract method 
         public abstract string GetUserRole();
     }
 }

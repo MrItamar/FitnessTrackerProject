@@ -60,9 +60,8 @@ namespace FitnessTrackerProject
 
             try
             {
-                // 1. ADDED: AssignedTraineeID to the SELECT statement
                 DataTable programs = DatabaseHelper.ExecuteQueryTable(
-                    "SELECT ProgramID, ProgramName, Goal, ProgramLevel, CreatedDate, AssignedTraineeID " +
+                    "SELECT ProgramID, ProgramName, Goal, ProgramLevel, CreatedDate" +
                     "FROM ProgramsTable WHERE CoachID = ? ORDER BY CreatedDate DESC",
                     p => p.AddWithValue("?", _coachId));
 
@@ -82,21 +81,6 @@ namespace FitnessTrackerProject
 
                     // 2. Build the default subtitle
                     string subtitle = string.Join(" · ", new[] { goal, level }.Where(s => s != ""));
-
-                    // 3. NEW: If it's a custom program, fetch the trainee's name and add it to the subtitle
-                    if (row["AssignedTraineeID"] != DBNull.Value)
-                    {
-                        int traineeId = Convert.ToInt32(row["AssignedTraineeID"]);
-
-                        string traineeName = Convert.ToString(DatabaseHelper.ExecuteScalar(
-                            "SELECT Username FROM Users WHERE ID = ?",
-                            p => p.AddWithValue("?", traineeId)));
-
-                        if (!string.IsNullOrEmpty(traineeName))
-                        {
-                            subtitle = $"Assigned to: {traineeName}" + (string.IsNullOrEmpty(subtitle) ? "" : " · " + subtitle);
-                        }
-                    }
 
                     items.Add(new ProgramItem
                     {

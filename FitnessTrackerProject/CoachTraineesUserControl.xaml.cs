@@ -104,46 +104,68 @@ namespace FitnessTrackerProject
             AssignProgramOverlay.Visibility = Visibility.Collapsed;
         }
 
+
         private void ConfirmAssign_Click(object sender, RoutedEventArgs e)
         {
             if (lstProgramTemplates.SelectedItem is ProgramChoiceItem selectedProgram)
             {
                 try
                 {
-                    // 1. Check if they already have this specific custom program
+                    // 1. Check whether this trainee is already enrolled
+                    // in this custom program.
                     string expectedCustomName = selectedProgram.Name + " (Custom)";
 
                     int alreadyExists = Convert.ToInt32(DatabaseHelper.ExecuteScalar(
-                        "SELECT COUNT(*) FROM ProgramsTable WHERE AssignedTraineeID = ? AND ProgramName = ?",
+                        @"SELECT COUNT(*)
+                  FROM ProgramsTable AS P
+                  INNER JOIN TraineePrograms AS TP
+                  ON P.ProgramID = TP.ProgramID
+                  WHERE TP.TraineeID = ?
+                  AND P.ProgramName = ?
+                  AND P.CoachID = ?",
                         p =>
                         {
                             p.AddWithValue("?", _activeTraineeId);
                             p.AddWithValue("?", expectedCustomName);
+                            p.AddWithValue("?", _coachId);
                         }));
 
-                    // 2. Stop and warn the coach if it's already assigned
+                    // 2. Prevent duplicate assignments
                     if (alreadyExists > 0)
                     {
-                        MessageBox.Show($"{expectedCustomName} is already assigned to this trainee.", "Already Assigned");
+                        MessageBox.Show(
+                            $"{expectedCustomName} is already assigned to this trainee.",
+                            "Already Assigned");
+
                         return;
                     }
 
-                    // 3. Otherwise, go ahead and duplicate it
-                    ProgramRepository.AssignCustomProgramToTrainee(selectedProgram.Id, _coachId, _activeTraineeId);
+                    ProgramRepository.AssignCustomProgramToTrainee(
+                        selectedProgram.Id,
+                        _coachId,
+                        _activeTraineeId);
 
-                    MessageBox.Show($"'{selectedProgram.Name}' has been duplicated and assigned to the trainee!", "Success");
+                    MessageBox.Show(
+                        $"'{selectedProgram.Name}' has been assigned to the trainee!",
+                        "Success");
+
                     AssignProgramOverlay.Visibility = Visibility.Collapsed;
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Could not assign program: " + ex.Message, "Error");
+                    MessageBox.Show(
+                        "Could not assign program: " + ex.Message,
+                        "Error");
                 }
             }
             else
             {
-                MessageBox.Show("Please select a program template to assign.", "Notice");
+                MessageBox.Show(
+                    "Please select a program template to assign.",
+                    "Notice");
             }
         }
+
         private void RefreshWorkoutListDisplay()
         {
             lstWorkoutHistory.ItemsSource = _allTraineeWorkouts.Take(_loadedWorkoutsCount).ToList();
