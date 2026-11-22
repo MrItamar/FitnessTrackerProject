@@ -41,7 +41,7 @@ namespace FitnessTrackerProject.Scripts
                             {
                                 CoachExercise ex = day.Exercises[e];
 
-                                Run(connection, transaction,
+                                DatabaseHelper.ExecuteNonQueryWithCurrentConnection(connection, transaction,
                                     "INSERT INTO ProgramExercisesTable (DayID, ExerciseID, SortOrder, Sets, Reps, RestTime) VALUES (?, ?, ?, ?, ?, ?)",
                                     dayId, ex.ExerciseId, e + 1, ex.Sets.Trim(), ex.Reps.Trim(), ex.Rest.Trim());
                             }
@@ -119,35 +119,21 @@ namespace FitnessTrackerProject.Scripts
             }
         }
         /// <summary>Runs an INSERT and returns the AutoNumber ID that Access just created.</summary>
-        private static int InsertAndGetId(OleDbConnection connection, OleDbTransaction transaction,
-                                          string sql, params object[] values)
+        private static int InsertAndGetId(
+            OleDbConnection connection,
+            OleDbTransaction transaction,
+            string sql,
+            params object[] values)
         {
-            Run(connection, transaction, sql, values);
+            DatabaseHelper.ExecuteNonQueryWithCurrentConnection(
+                connection, transaction, sql, values);
 
-            // Must be the same connection as the INSERT, that's why we don't use DatabaseHelper's methods here
-            using (var command = new OleDbCommand("SELECT @@IDENTITY", connection, transaction))
+            using (var command = new OleDbCommand(
+                "SELECT @@IDENTITY", connection, transaction))
             {
                 return Convert.ToInt32(command.ExecuteScalar());
             }
         }
-
-        /// <summary>Runs a command. Access fills the ? marks in ORDER, so the values must be in the same order.</summary>
-        private static void Run(OleDbConnection connection, OleDbTransaction transaction,
-                                string sql, params object[] values)
-        {
-            using (var command = new OleDbCommand(sql, connection, transaction))
-            {
-                foreach (object value in values)
-                {
-                    if (value is DateTime)
-                        command.Parameters.Add("?", OleDbType.Date).Value = value;
-                    else
-                        command.Parameters.AddWithValue("?", value ?? DBNull.Value);   // null -> empty cell in the database
-                }
-                command.ExecuteNonQuery();
-            }
-        }
-
         public static void AssignCustomProgramToTrainee(
             int originalProgramId,
             int coachId,

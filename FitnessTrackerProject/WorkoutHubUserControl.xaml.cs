@@ -292,7 +292,8 @@ namespace FitnessTrackerProject
 
             bool selected = string.Equals(exercise, _selectedExercise, StringComparison.OrdinalIgnoreCase);
 
-            card.BorderBrush = Hex(selected ? "#3B82F6" : "#E5E7EB");
+            card.BorderBrush = Hex(selected ? "#3B82F" +
+                "6" : "#E5E7EB");
             card.Background = Hex(selected ? "#EFF6FF" : "#FFFFFF");
         }
 

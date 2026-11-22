@@ -56,47 +56,7 @@ namespace FitnessTrackerProject.Scripts
             "ProgramsTable.ProgramLevel, ProgramsTable.CoachID, Users.Username, Users.ProfilePicPath " +
             "FROM ProgramsTable INNER JOIN Users ON ProgramsTable.CoachID = Users.ID ";
 
-        // ================================================================
-        // Database upgrade (runs once per app start, does nothing if already done)
-        // ================================================================
-        private static void EnsureSchema()
-        {
-            if (_schemaChecked) return;
-
-            using (OleDbConnection connection = DatabaseHelper.GetConnection())
-            {
-                connection.Open();
-
-                // 1. Trainees.TrainerID column (the dedicated trainer)
-                DataTable columns = connection.GetSchema("Columns", new string[] { null, null, "Trainees", null });
-                bool hasTrainer = false;
-                foreach (DataRow row in columns.Rows)
-                {
-                    if (string.Equals(row["COLUMN_NAME"].ToString(), "TrainerID", StringComparison.OrdinalIgnoreCase))
-                        hasTrainer = true;
-                }
-                if (!hasTrainer) RunDdl(connection, "ALTER TABLE Trainees ADD COLUMN TrainerID LONG");
-
-                // 2. TraineePrograms table (one row per program a trainee added)
-                DataTable tables = connection.GetSchema("Tables", new string[] { null, null, "TraineePrograms", "TABLE" });
-                if (tables.Rows.Count == 0)
-                    RunDdl(connection, "CREATE TABLE TraineePrograms (TraineeID LONG, ProgramID LONG)");
-            }
-
-            _schemaChecked = true;
-        }
-
-        private static void RunDdl(OleDbConnection connection, string sql)
-        {
-            using (var command = new OleDbCommand(sql, connection))
-            {
-                command.ExecuteNonQuery();
-            }
-        }
-
-        // ================================================================
         // Trainee info
-        // ================================================================
 
         public static bool IsTrainee(int userId)
         {
@@ -109,8 +69,6 @@ namespace FitnessTrackerProject.Scripts
         /// <summary>The ID of the trainee's dedicated trainer, or null if there is none.</summary>
         public static int? GetTrainerId(int traineeId)
         {
-            EnsureSchema();
-
             DataTable dt = DatabaseHelper.ExecuteQueryTable(
                 "SELECT TrainerID FROM Trainees WHERE UserID = ?",
                 p => p.AddWithValue("?", traineeId));
@@ -123,8 +81,6 @@ namespace FitnessTrackerProject.Scripts
         /// <summary>The IDs of all programs the trainee added.</summary>
         public static HashSet<int> GetProgramIds(int userId)
         {
-            EnsureSchema();
-
             HashSet<int> ids = new HashSet<int>();
             int traineeId = GetTraineeIdByUserId(userId);
             if (traineeId == -1) return ids;
@@ -140,9 +96,7 @@ namespace FitnessTrackerProject.Scripts
             return ids;
         }
 
-        // ================================================================
         // Trainers
-        // ================================================================
 
         public static List<TrainerItem> GetTrainers(int? selectedTrainerId)
         {
@@ -177,16 +131,12 @@ namespace FitnessTrackerProject.Scripts
             return list;
         }
 
-        // ================================================================
         // Programs
-        // ================================================================
 
         /// <summary>All programs. The ones in selectedIds get IsSelected = true.</summary>
 
         public static List<ProgramChoiceItem> GetPrograms(HashSet<int> selectedIds)
         {
-            EnsureSchema();
-
             DataTable dt = DatabaseHelper.ExecuteQueryTable(
                 ProgramSelect +
                 "ORDER BY ProgramsTable.CreatedDate DESC");
@@ -196,28 +146,24 @@ namespace FitnessTrackerProject.Scripts
 
         /// <summary>All programs made by one coach (the trainee's dedicated trainer).</summary>
 
-public static List<ProgramChoiceItem> GetProgramsByCoach(
-    int coachId,
-    int? currentTraineeId = null)
-{
-    EnsureSchema();
+        public static List<ProgramChoiceItem> GetProgramsByCoach(
+            int coachId,
+            int? currentTraineeId = null)
+        {
+            string sql = ProgramSelect +
+                "WHERE ProgramsTable.CoachID = ? " +
+                "ORDER BY ProgramsTable.CreatedDate DESC";
 
-    string sql = ProgramSelect +
-        "WHERE ProgramsTable.CoachID = ? " +
-        "ORDER BY ProgramsTable.CreatedDate DESC";
+            DataTable dt = DatabaseHelper.ExecuteQueryTable(
+                sql,
+                p => p.AddWithValue("?", coachId));
 
-    DataTable dt = DatabaseHelper.ExecuteQueryTable(
-        sql,
-        p => p.AddWithValue("?", coachId));
-
-    return BuildPrograms(dt, null);
-}
+            return BuildPrograms(dt, null);
+        }
 
         /// <summary>The programs this trainee added.</summary>
         public static List<ProgramChoiceItem> GetChosenPrograms(int userId)
         {
-            EnsureSchema();
-
             int traineeId = GetTraineeIdByUserId(userId);
             if (traineeId == -1) return new List<ProgramChoiceItem>();
 
@@ -335,14 +281,10 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
             return list;
         }
 
-        // ================================================================
         // Saving
-        // ================================================================
 
         public static void SetTrainer(int traineeId, int? trainerId)
         {
-            EnsureSchema();
-
             DatabaseHelper.ExecuteNonQuery(
                 "UPDATE Trainees SET TrainerID = ? WHERE UserID = ?",
                 p =>
@@ -353,8 +295,6 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
         }
         public static void AddProgram(int userId, int programId)
         {
-            EnsureSchema();
-
             int traineeId = GetTraineeIdByUserId(userId);
             if (traineeId == -1)
                 throw new InvalidOperationException("No Trainee profile found for this user.");
@@ -384,8 +324,6 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
         }
         public static void RemoveProgram(int userId, int programId)
         {
-            EnsureSchema();
-
             int traineeId = GetTraineeIdByUserId(userId);
             if (traineeId == -1) return;
 
@@ -397,9 +335,7 @@ public static List<ProgramChoiceItem> GetProgramsByCoach(
                     p.AddWithValue("?", programId);
                 });
         }
-        // ================================================================
-        // Small helpers
-        // ================================================================
+        // helpers
 
         private static string Text(DataRow row, string column)
         {
