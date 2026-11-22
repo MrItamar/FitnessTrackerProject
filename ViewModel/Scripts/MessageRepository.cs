@@ -39,7 +39,7 @@ namespace FitnessTrackerProject.Scripts
 
             // Gets all messages where these two users are the sender and receiver, sorted oldest to newest
             string sql = @"
-                SELECT [Messages].[MessageID], [Messages].[SenderID], [Messages].[MessageText], [Messages].[SentDate], [Users].[Username] 
+                SELECT [Messages].[MessageID], [Messages].[Sende rID], [Messages].[MessageText], [Messages].[SentDate], [Users].[Username] 
                 FROM [Messages]
                 INNER JOIN [Users] ON [Messages].[SenderID] = [Users].[ID]
                 WHERE ([Messages].[SenderID] = ? AND [Messages].[ReceiverID] = ?) 

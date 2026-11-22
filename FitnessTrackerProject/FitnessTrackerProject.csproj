@@ -122,132 +122,13 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="AIAnalysisWindow.xaml.cs">
-      <DependentUpon>AIAnalysisWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="AllExercisesWindow.xaml.cs">
-      <DependentUpon>AllExercisesWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="ChatWindow.xaml.cs">
-      <DependentUpon>ChatWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="CoachProgramsUserControl.xaml.cs">
-      <DependentUpon>CoachProgramsUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="CoachStudioUserControl.xaml.cs">
-      <DependentUpon>CoachStudioUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="CoachTraineesUserControl.xaml.cs">
-      <DependentUpon>CoachTraineesUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="CreateProgramUserControl.xaml.cs">
-      <DependentUpon>CreateProgramUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="ExploreUserControl.xaml.cs">
-      <DependentUpon>ExploreUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="ProfileUserControl.xaml.cs">
-      <DependentUpon>ProfileUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="ProgramDetailUserControl.xaml.cs">
-      <DependentUpon>ProgramDetailUserControl.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Scripts\BoxTracker.cs" />
-    <Compile Include="LoginWindow.xaml.cs">
-      <DependentUpon>LoginWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Models\BaseUser.cs" />
     <Compile Include="Models\Coach.cs" />
     <Compile Include="Models\Trainee.cs" />
-    <Compile Include="Scripts\CoachRepository.cs" />
-    <Compile Include="Scripts\DatabaseHelper.cs" />
-    <Compile Include="Scripts\DeadliftCounter.cs" />
-    <Compile Include="Scripts\DistanceChecker.cs" />
-    <Compile Include="Scripts\ExerciseRegistry.cs" />
-    <Compile Include="Scripts\ExercisePool.cs" />
-    <Compile Include="Scripts\IExerciseCounter.cs" />
-    <Compile Include="Scripts\KeyPoints.cs" />
-    <Compile Include="Scripts\MessageRepository.cs" />
-    <Compile Include="Scripts\PlankChecker.cs" />
-    <Compile Include="Scripts\PoseChecks.cs" />
-    <Compile Include="Scripts\PoseDrawer.cs" />
-    <Compile Include="Scripts\PoseEstimator.cs" />
-    <Compile Include="Scripts\ProgramRepository.cs" />
-    <Compile Include="Scripts\PullUpCounter.cs" />
-    <Compile Include="Scripts\PushUpCounter.cs" />
-    <Compile Include="Scripts\SquatCounter.cs" />
-    <Compile Include="Scripts\TraineeRepository.cs" />
-    <Compile Include="Scripts\WorkoutResult.cs" />
-    <Compile Include="SignUpWindow.xaml.cs">
-      <DependentUpon>SignUpWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="WorkoutHubUserControl.xaml.cs">
-      <DependentUpon>WorkoutHubUserControl.xaml</DependentUpon>
-    </Compile>
-    <Page Include="AIAnalysisWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="AllExercisesWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="ChatWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="CoachProgramsUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="CoachStudioUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="CoachTraineesUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="CreateProgramUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="ExploreUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="LoginWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="MainWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="MainWindow.xaml.cs">
-      <DependentUpon>MainWindow.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Page Include="ProfileUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="ProgramDetailUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="SignUpWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="WorkoutHubUserControl.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -285,10 +166,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="DataBase\FitnessTrackerDB1.accdb">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Resource Include="Images\OpenSidebar.png" />
     <Content Include="OpenCvSharpExtern.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -1,6 +1,4 @@
-﻿using FitnessTrackerProject.Models;
-using FitnessTrackerProject.Scripts;
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System;
 using System.Data.OleDb;
 using System.Security.Cryptography;

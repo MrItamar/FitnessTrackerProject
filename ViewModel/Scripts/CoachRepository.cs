@@ -11,7 +11,7 @@ namespace FitnessTrackerProject.Scripts
         public string Name { get; set; }
         public string Initial { get; set; }
         public string Goal { get; set; }
-        public string Details { get; set; }        // e.g., "Age: 24 · 72kg · 178cm"
+        public string Details { get; set; }// e.g., "Age: 24 · 72kg · 178cm"
         public ImageSource Picture { get; set; }
         public int TotalWorkouts { get; set; }
     }

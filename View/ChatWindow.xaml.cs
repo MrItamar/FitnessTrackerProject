@@ -1,5 +1,4 @@
-﻿using FitnessTrackerProject.Scripts;
-using System.Windows;
+﻿using System.Windows;
 
 namespace FitnessTrackerProject
 {
