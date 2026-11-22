@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>One body point found by the model, in VIDEO FRAME pixels.</summary>
     public class Keypoint

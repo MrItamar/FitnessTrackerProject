@@ -3,8 +3,10 @@ using System.Data.OleDb;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
+using ViewModel.Scripts;
+using FitnessTrackerProject.Models;
 
-namespace FitnessTrackerProject
+namespace View
 {
     public partial class LoginWindow : Window
     {

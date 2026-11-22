@@ -1,9 +1,13 @@
-﻿using FitnessTrackerProject.Scripts;
-using OpenCvSharp;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
+using OpenCvSharp;
 
-namespace FitnessTrackerProject.Scripts
+
+namespace ViewModel.Scripts
 {
     /// <summary>Everything that draws on the video: skeleton, box, text, and resizing for the window.</summary>
     public static class PoseDrawer

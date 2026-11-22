@@ -124,6 +124,8 @@
     </ApplicationDefinition>
     <Compile Include="Models\BaseUser.cs" />
     <Compile Include="Models\Coach.cs" />
+    <Compile Include="Models\CoachModels.cs" />
+    <Compile Include="Models\ProgramModels.cs" />
     <Compile Include="Models\Trainee.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -131,6 +133,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Models\TraineeModels.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

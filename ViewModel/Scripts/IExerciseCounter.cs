@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>What every exercise (counter) must be able to do.</summary>
     public interface IExerciseCounter

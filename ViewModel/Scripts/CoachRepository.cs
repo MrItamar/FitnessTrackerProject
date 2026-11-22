@@ -1,31 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Windows.Media;
+using FitnessTrackerProject.Models;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
-    public class CoachTraineeItem
-    {
-        public int TraineeId { get; set; }
-        public string Name { get; set; }
-        public string Initial { get; set; }
-        public string Goal { get; set; }
-        public string Details { get; set; }// e.g., "Age: 24 · 72kg · 178cm"
-        public ImageSource Picture { get; set; }
-        public int TotalWorkouts { get; set; }
-    }
-
-    public class TraineeWorkoutActivity
-    {
-        public string ExerciseName { get; set; }
-        public string ResultDisplay { get; set; }  // e.g., "20 reps" or "45s"
-        public string DateText { get; set; }       // e.g., "Tue, 14 Oct 16:30"
-        public string Note { get; set; }
-        public bool NoteIsGood { get; set; }
-        public int TrackingQuality { get; set; }
-    }
-
     public static class CoachRepository
     {
         /// <summary>
@@ -49,14 +28,6 @@ namespace FitnessTrackerProject.Scripts
             {
                 int traineeId = Convert.ToInt32(row["ID"]);
                 string name = row["Username"]?.ToString() ?? "Unknown";
-                string age = row["Age"] != DBNull.Value ? row["Age"].ToString() : "-";
-                string height = row["Height"] != DBNull.Value ? $"{row["Height"]}cm" : "";
-                string weight = row["Weight"] != DBNull.Value ? $"{row["Weight"]}kg" : "";
-
-                var parts = new List<string>();
-                if (age != "-") parts.Add($"Age {age}");
-                if (!string.IsNullOrEmpty(height)) parts.Add(height);
-                if (!string.IsNullOrEmpty(weight)) parts.Add(weight);
 
                 int workoutCount = Convert.ToInt32(DatabaseHelper.ExecuteScalar(
                     "SELECT COUNT(*) FROM Workouts WHERE UserID = ?",
@@ -68,8 +39,7 @@ namespace FitnessTrackerProject.Scripts
                     Name = name,
                     Initial = string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1).ToUpper(),
                     Goal = row["FitnessGoal"] != DBNull.Value ? row["FitnessGoal"].ToString() : "General Fitness",
-                    Details = parts.Count > 0 ? string.Join(" · ", parts) : "No metrics logged",
-                    Picture = TraineeRepository.LoadPicture(row["ProfilePicPath"]?.ToString()),
+                    Details = BuildDetailsString(row),
                     TotalWorkouts = workoutCount
                 });
             }
@@ -115,12 +85,18 @@ namespace FitnessTrackerProject.Scripts
 
             return list;
         }
+
+        /// <summary>
+        /// Retrieves a single trainee's profile summary by their UserID.
+        /// </summary>
         public static CoachTraineeItem GetTraineeById(int traineeId)
         {
-            // Select Age from Users, and Height/Weight from Trainees
-            string sql = "SELECT Users.ID, Users.Username, Users.Age, Trainees.FitnessGoal, Trainees.Height, Trainees.Weight " +
-                         "FROM Users INNER JOIN Trainees ON Users.ID = Trainees.UserID " +
-                         "WHERE Users.ID = ?";
+            string sql = @"
+                SELECT Users.ID, Users.Username, Users.Age, 
+                       Trainees.FitnessGoal, Trainees.Height, Trainees.Weight
+                FROM Users 
+                INNER JOIN Trainees ON Users.ID = Trainees.UserID
+                WHERE Users.ID = ?";
 
             var dt = DatabaseHelper.ExecuteQueryTable(sql, p => p.AddWithValue("?", traineeId));
 
@@ -128,28 +104,39 @@ namespace FitnessTrackerProject.Scripts
             {
                 var row = dt.Rows[0];
 
-                // Build the Details string
-                string age = row["Age"] != DBNull.Value ? row["Age"].ToString() : "-";
-                string height = row["Height"] != DBNull.Value ? $"{row["Height"]}cm" : "";
-                string weight = row["Weight"] != DBNull.Value ? $"{row["Weight"]}kg" : "";
-
-                var parts = new List<string>();
-                if (age != "-") parts.Add($"Age {age}");
-                if (!string.IsNullOrEmpty(height)) parts.Add(height);
-                if (!string.IsNullOrEmpty(weight)) parts.Add(weight);
-
-                string detailsString = parts.Count > 0 ? string.Join(" · ", parts) : "No metrics logged";
-
                 return new CoachTraineeItem
                 {
                     TraineeId = Convert.ToInt32(row["ID"]),
                     Name = row["Username"].ToString(),
                     Goal = row["FitnessGoal"] == DBNull.Value ? "General Fitness" : row["FitnessGoal"].ToString(),
-                    Details = detailsString // <-- Assign it right here
+                    Details = BuildDetailsString(row)
                 };
             }
 
             return null;
+        }
+
+        private static string BuildDetailsString(DataRow row)
+        {
+            string age = row["Age"] != DBNull.Value ? row["Age"].ToString() : "-";
+            string height = row["Height"] != DBNull.Value ? $"{row["Height"]}cm" : "";
+            string weight = row["Weight"] != DBNull.Value ? $"{row["Weight"]}kg" : "";
+
+            var parts = new List<string>();
+            if (age != "-") parts.Add($"Age {age}");
+            if (!string.IsNullOrEmpty(height)) parts.Add(height);
+            if (!string.IsNullOrEmpty(weight)) parts.Add(weight);
+
+            return parts.Count > 0 ? string.Join(" · ", parts) : "No metrics logged";
+        }
+        public static bool IsCoach(int userId)
+        {
+            object role = DatabaseHelper.ExecuteScalar(
+                "SELECT UserRole FROM Users WHERE ID = ?",
+                p => p.AddWithValue("?", userId));
+
+            return role != null && role != DBNull.Value &&
+                   string.Equals(role.ToString().Trim(), "Coach", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

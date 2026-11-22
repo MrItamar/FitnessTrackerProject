@@ -5,8 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using ViewModel.Scripts;
+using FitnessTrackerProject.Models;
 
-namespace FitnessTrackerProject
+namespace View
 {
     public partial class AIAnalysisWindow : Window
     {

@@ -1,12 +1,12 @@
 ﻿using FitnessTrackerProject.Models;
-using FitnessTrackerProject.Scripts;
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Linq;
+using ViewModel.Scripts;
 
-namespace FitnessTrackerProject
+namespace View
 {
     public partial class CoachTraineesUserControl : UserControl
     {

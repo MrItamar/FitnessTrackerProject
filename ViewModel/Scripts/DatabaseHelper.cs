@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.OleDb;
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     public static class DatabaseHelper
     {

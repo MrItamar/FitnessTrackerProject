@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
-
-namespace FitnessTrackerProject
+using ViewModel.Scripts;
+using FitnessTrackerProject.Models;
+namespace View
 {
     public partial class ProgramDetailUserControl : UserControl
     {
@@ -33,7 +34,7 @@ namespace FitnessTrackerProject
                 txtSubtitle.Text = program.Subtitle;
                 txtCoach.Text = "by " + program.CoachName;
                 txtInitial.Text = program.Initial;
-                picBrush.ImageSource = program.Picture;
+                picBrush.ImageSource = ImageHelper.LoadPicture(program.PicturePath);
 
                 List<ProgramDayItem> days = TraineeRepository.GetProgramDays(programId);
                 lstDays.ItemsSource = days;

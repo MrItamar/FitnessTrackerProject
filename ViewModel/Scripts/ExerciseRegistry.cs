@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>
     /// The list of all exercises the app can count.

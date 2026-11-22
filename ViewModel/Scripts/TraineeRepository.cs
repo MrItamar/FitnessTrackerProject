@@ -1,56 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.OleDb;
-using System.IO;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using FitnessTrackerProject.Models;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
-    public class TrainerItem
-    {
-        public int Id { get; set; }                 // = Users.ID of the trainer
-        public string Name { get; set; }
-        public string Initial { get; set; }
-        public string Specialty { get; set; }
-        public string Bio { get; set; }
-        public string Stats { get; set; }
-        public ImageSource Picture { get; set; }
-        public bool IsSelected { get; set; }
-        public string ButtonText { get { return IsSelected ? "Selected \u2713" : "Choose trainer"; } }
-    }
-
-    public class ProgramChoiceItem
-    {
-        public int Id { get; set; }                 // = ProgramID
-        public string Name { get; set; }
-        public string Subtitle { get; set; }
-        public string Stats { get; set; }
-        public int CoachId { get; set; }
-        public string CoachName { get; set; }
-        public string Initial { get; set; }
-        public ImageSource Picture { get; set; }    // the COACH's profile picture
-        public bool IsSelected { get; set; }        // true = the trainee added this program
-        public string ButtonText { get { return IsSelected ? "Remove" : "Add program"; } }
-    }
-
-    public class ProgramExerciseItem
-    {
-        public string Name { get; set; }
-        public string Details { get; set; }         // "Sets 3 · Reps 10 · Rest 60"
-    }
-
-    public class ProgramDayItem
-    {
-        public string Title { get; set; }           // "Day 1 · Push"
-        public List<ProgramExerciseItem> Exercises { get; set; }
-    }
-
     public static class TraineeRepository
     {
-        private static bool _schemaChecked = false;
-
         private const string ProgramSelect =
             "SELECT ProgramsTable.ProgramID, ProgramsTable.ProgramName, ProgramsTable.Goal, " +
             "ProgramsTable.ProgramLevel, ProgramsTable.CoachID, Users.Username, Users.ProfilePicPath " +
@@ -123,7 +79,7 @@ namespace FitnessTrackerProject.Scripts
                 item.Specialty = Text(row, "Specialty");
                 item.Bio = Text(row, "Bio");
                 item.Stats = programs + (programs == 1 ? " program" : " programs");
-                item.Picture = LoadPicture(Text(row, "ProfilePicPath"));
+                item.PicturePath = Text(row, "ProfilePicPath");
                 item.IsSelected = selectedTrainerId.HasValue && selectedTrainerId.Value == id;
                 list.Add(item);
             }
@@ -134,7 +90,6 @@ namespace FitnessTrackerProject.Scripts
         // Programs
 
         /// <summary>All programs. The ones in selectedIds get IsSelected = true.</summary>
-
         public static List<ProgramChoiceItem> GetPrograms(HashSet<int> selectedIds)
         {
             DataTable dt = DatabaseHelper.ExecuteQueryTable(
@@ -145,7 +100,6 @@ namespace FitnessTrackerProject.Scripts
         }
 
         /// <summary>All programs made by one coach (the trainee's dedicated trainer).</summary>
-
         public static List<ProgramChoiceItem> GetProgramsByCoach(
             int coachId,
             int? currentTraineeId = null)
@@ -273,7 +227,7 @@ namespace FitnessTrackerProject.Scripts
                 item.CoachId = Convert.ToInt32(row["CoachID"]);
                 item.CoachName = coachName;
                 item.Initial = FirstLetter(coachName);
-                item.Picture = LoadPicture(Text(row, "ProfilePicPath"));
+                item.PicturePath = Text(row, "ProfilePicPath");
                 item.IsSelected = selectedIds != null && selectedIds.Contains(id);
                 list.Add(item);
             }
@@ -293,6 +247,7 @@ namespace FitnessTrackerProject.Scripts
                     p.AddWithValue("?", traineeId);
                 });
         }
+
         public static void AddProgram(int userId, int programId)
         {
             int traineeId = GetTraineeIdByUserId(userId);
@@ -311,6 +266,7 @@ namespace FitnessTrackerProject.Scripts
                     p.AddWithValue("?", programId);
                 });
         }
+
         public static int GetTraineeIdByUserId(int userId)
         {
             object result = DatabaseHelper.ExecuteScalar(
@@ -322,6 +278,7 @@ namespace FitnessTrackerProject.Scripts
             }
             return -1;
         }
+
         public static void RemoveProgram(int userId, int programId)
         {
             int traineeId = GetTraineeIdByUserId(userId);
@@ -335,7 +292,8 @@ namespace FitnessTrackerProject.Scripts
                     p.AddWithValue("?", programId);
                 });
         }
-        // helpers
+
+        // Helpers
 
         private static string Text(DataRow row, string column)
         {
@@ -345,28 +303,6 @@ namespace FitnessTrackerProject.Scripts
         private static string FirstLetter(string name)
         {
             return string.IsNullOrEmpty(name) ? "?" : name.Substring(0, 1).ToUpper();
-        }
-
-        /// <summary>Loads a profile picture from its saved path. Returns null if there is none.</summary>
-        public static ImageSource LoadPicture(string path)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
-
-                BitmapImage bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.DecodePixelWidth = 160;
-                bitmap.UriSource = new Uri(path);
-                bitmap.EndInit();
-                bitmap.Freeze();
-                return bitmap;
-            }
-            catch
-            {
-                return null;
-            }
         }
     }
 }

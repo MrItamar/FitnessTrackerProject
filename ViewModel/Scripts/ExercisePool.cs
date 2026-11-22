@@ -2,19 +2,9 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-
-namespace FitnessTrackerProject.Scripts
+using FitnessTrackerProject.Models;
+namespace ViewModel.Scripts
 {
-    public class ExerciseModel
-    {
-        public int Id;
-        public string Name;
-        public string TargetMuscle;
-        public string Description;
-        public string Hint;
-        public bool IsHorizontal;
-    }
-
     public static class ExercisePool
     {
         private static readonly List<ExerciseModel> _exercises =

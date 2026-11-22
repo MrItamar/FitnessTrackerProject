@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 
-namespace FitnessTrackerProject
+namespace View
 {
     public partial class CoachStudioUserControl : UserControl
     {

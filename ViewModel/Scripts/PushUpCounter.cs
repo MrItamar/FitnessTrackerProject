@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>
     /// Counts push-ups (side view) using the ELBOW ANGLE: shoulder -> elbow -> wrist.

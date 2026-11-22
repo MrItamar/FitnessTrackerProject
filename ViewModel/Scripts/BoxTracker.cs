@@ -1,9 +1,8 @@
-﻿using FitnessTrackerProject.Scripts;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>
     /// Moves the crop box so it follows the person. It starts as the whole frame, then

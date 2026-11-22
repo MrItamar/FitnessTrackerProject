@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Windows;
 using System.Windows.Input;
+using ViewModel.Scripts;
 
-namespace FitnessTrackerProject
+namespace View
 {
     /// <summary>One exercise box. Later these will come from the database.</summary>
     public class ExerciseItem

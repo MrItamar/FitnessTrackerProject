@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     public enum DistanceStatus { Good, TooClose }
 

@@ -1,6 +1,7 @@
 ﻿using System.Windows;
+using ViewModel.Scripts;
 
-namespace FitnessTrackerProject
+namespace View
 {
     public partial class ChatWindow : Window
     {

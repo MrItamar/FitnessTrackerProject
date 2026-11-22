@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>
     /// Counts barbell deadlifts (side view) using HIP HEIGHT relative to shin length:

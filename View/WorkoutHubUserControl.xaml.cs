@@ -7,8 +7,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Navigation;
-
-namespace FitnessTrackerProject
+using FitnessTrackerProject.Models;
+using ViewModel.Scripts;
+namespace View
 {
     public partial class WorkoutHubUserControl : UserControl
     {

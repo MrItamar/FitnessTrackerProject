@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.OleDb;
+using FitnessTrackerProject.Models;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>Saves a coach's program (program > days > exercises) to the Access database.</summary>
     public static class ProgramRepository

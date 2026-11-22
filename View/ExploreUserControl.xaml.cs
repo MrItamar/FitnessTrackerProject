@@ -4,8 +4,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Navigation;
+using ViewModel.Scripts;
+using FitnessTrackerProject.Models;
 
-namespace FitnessTrackerProject
+namespace View
 {
     public partial class ExploreUserControl : UserControl
     {

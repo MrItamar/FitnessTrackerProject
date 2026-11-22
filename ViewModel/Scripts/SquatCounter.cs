@@ -1,8 +1,7 @@
-﻿using FitnessTrackerProject.Scripts;
-using System;
+﻿using System;
 using System.Collections.Generic;
 
-namespace FitnessTrackerProject.Scripts
+namespace ViewModel.Scripts
 {
     /// <summary>
     /// Counts squats using the "leg ratio" = thigh height / calf height (vertical distances).

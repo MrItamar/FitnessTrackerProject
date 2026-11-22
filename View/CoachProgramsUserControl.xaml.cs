@@ -4,8 +4,10 @@ using System.Data;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using ViewModel.Scripts;
+using FitnessTrackerProject.Models;
 
-namespace FitnessTrackerProject
+namespace View
 {
     // Small classes that hold what the screen shows (properties, so WPF binding can read them)
     public class ProgramItem
