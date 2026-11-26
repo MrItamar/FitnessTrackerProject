@@ -1,6 +1,5 @@
 ﻿using Microsoft.Win32;
 using System;
-using System.Data.OleDb;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -28,76 +27,46 @@ namespace View
 
         private void LoadUserProfile()
         {
-            using (OleDbConnection conn = DatabaseHelper.GetConnection())
+            UserProfileData profile = UserRepository.GetProfile(currentUserId);
+
+            if (profile == null)
             {
-                conn.Open();
+                MessageBox.Show("Could not find this user profile.");
+                return;
+            }
 
-                // select user info
-                string userQuery = "SELECT Username, Age, Gender, ProfilePicPath, UserRole FROM Users WHERE ID = ?";
-                string role = "";
+            // General user information
+            txtUsername.Text = profile.Username;
+            txtAge.Text = profile.Age.ToString();
 
-                using (OleDbCommand cmd = new OleDbCommand(userQuery, conn))
-                {
-                    cmd.Parameters.AddWithValue("?", currentUserId);
-                    using (OleDbDataReader reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            txtUsername.Text = reader["Username"]?.ToString();
-                            txtAge.Text = reader["Age"]?.ToString();
-                            SelectOrAdd(cmbGender, reader["Gender"]?.ToString());
+            SelectOrAdd(cmbGender, profile.Gender);
 
-                            string picPath = reader["ProfilePicPath"]?.ToString();
-                            if (!string.IsNullOrEmpty(picPath) && File.Exists(picPath))
-                            {
-                                imgProfile.Source = new BitmapImage(new Uri(picPath));
-                            }
+            if (!string.IsNullOrEmpty(profile.ProfilePicPath) &&
+                File.Exists(profile.ProfilePicPath))
+            {
+                imgProfile.Source = new BitmapImage(new Uri(profile.ProfilePicPath));
+            }
 
-                            role = reader["UserRole"]?.ToString().Trim();
-                        }
-                    }
-                }
+            // Role-specific visibility
+            bool isCoach = string.Equals(
+                profile.UserRole, "Coach",
+                StringComparison.OrdinalIgnoreCase);
 
-                //Fill in role specific data
-                bool isCoach = string.Equals(role, "Coach", StringComparison.OrdinalIgnoreCase);
-                panelCoach.Visibility = isCoach ? Visibility.Visible : Visibility.Collapsed;
-                panelTrainee.Visibility = isCoach ? Visibility.Collapsed : Visibility.Visible;
+            panelCoach.Visibility = isCoach ? Visibility.Visible : Visibility.Collapsed;
+            panelTrainee.Visibility = isCoach ? Visibility.Collapsed : Visibility.Visible;
 
-                if (isCoach)
-                {
-                    //Fill coach data
-                    string coachQuery = "SELECT Specialty, Bio FROM Trainers WHERE UserID = ?";
-                    using (OleDbCommand cmd = new OleDbCommand(coachQuery, conn))
-                    {
-                        cmd.Parameters.AddWithValue("?", currentUserId);
-                        using (OleDbDataReader reader = cmd.ExecuteReader())
-                        {
-                            if (reader.Read())
-                            {
-                                txtSpecialty.Text = reader["Specialty"]?.ToString();
-                                txtBio.Text = reader["Bio"]?.ToString();
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    //Fill Trainee data
-                    string traineeQuery = "SELECT Height, Weight, FitnessGoal FROM Trainees WHERE UserID = ?";
-                    using (OleDbCommand cmd = new OleDbCommand(traineeQuery, conn))
-                    {
-                        cmd.Parameters.AddWithValue("?", currentUserId);
-                        using (OleDbDataReader reader = cmd.ExecuteReader())
-                        {
-                            if (reader.Read())
-                            {
-                                txtHeight.Text = reader["Height"]?.ToString();
-                                txtWeight.Text = reader["Weight"]?.ToString();
-                                SelectOrAdd(cmbFitnessGoal, reader["FitnessGoal"]?.ToString());
-                            }
-                        }
-                    }
-                }
+            // Role-specific information
+            if (isCoach)
+            {
+                txtSpecialty.Text = profile.Specialty;
+                txtBio.Text = profile.Bio;
+            }
+            else
+            {
+                txtHeight.Text = profile.Height.ToString();
+                txtWeight.Text = profile.Weight.ToString();
+
+                SelectOrAdd(cmbFitnessGoal, profile.FitnessGoal);
             }
         }
 
@@ -148,54 +117,35 @@ namespace View
             //  Save to db
             try
             {
-                using (OleDbConnection conn = DatabaseHelper.GetConnection())
+                // Get the user's role
+                UserProfileData profile = UserRepository.GetProfile(currentUserId);
+
+                if (profile == null)
                 {
-                    conn.Open();
-
-                    string updateUsers = "UPDATE Users SET Username = ?, Age = ?, Gender = ? WHERE ID = ?";
-                    using (OleDbCommand cmdUsers = new OleDbCommand(updateUsers, conn))
-                    {
-                        cmdUsers.Parameters.AddWithValue("?", txtUsername.Text.Trim());
-                        cmdUsers.Parameters.AddWithValue("?", age);
-                        cmdUsers.Parameters.AddWithValue("?", gender);
-                        cmdUsers.Parameters.AddWithValue("?", currentUserId);
-                        cmdUsers.ExecuteNonQuery();
-                    }
-
-                    string updateTrainees = "UPDATE Trainees SET Height = ?, Weight = ?, FitnessGoal = ? WHERE UserID = ?";
-                    using (OleDbCommand cmdTrainees = new OleDbCommand(updateTrainees, conn))
-                    {
-                        cmdTrainees.Parameters.AddWithValue("?", height);
-                        cmdTrainees.Parameters.AddWithValue("?", weight);
-                        cmdTrainees.Parameters.AddWithValue("?", fitnessGoal);
-                        cmdTrainees.Parameters.AddWithValue("?", currentUserId);
-                        cmdTrainees.ExecuteNonQuery();
-                    }
-
-                    string updateTrainers = "UPDATE Trainers SET Specialty = ?, Bio = ? WHERE UserID = ?";
-                    using (OleDbCommand cmdTrainers = new OleDbCommand(updateTrainers, conn))
-                    {
-                        cmdTrainers.Parameters.AddWithValue("?", txtSpecialty.Text.Trim());
-                        cmdTrainers.Parameters.AddWithValue("?", txtBio.Text.Trim());
-                        cmdTrainers.Parameters.AddWithValue("?", currentUserId);
-                        cmdTrainers.ExecuteNonQuery();
-                    }
-
-                    if (!string.IsNullOrEmpty(newPicPath))
-                    {
-                        string updatePic = "UPDATE Users SET ProfilePicPath = ? WHERE ID = ?";
-                        using (OleDbCommand cmdPic = new OleDbCommand(updatePic, conn))
-                        {
-                            cmdPic.Parameters.AddWithValue("?", newPicPath);
-                            cmdPic.Parameters.AddWithValue("?", currentUserId);
-                            cmdPic.ExecuteNonQuery();
-                        }
-                    }
+                    MessageBox.Show("User profile not found.");
+                    return;
                 }
+
+                string role = profile.UserRole;
+
+                // Update profile through UserRepository
+                UserRepository.UpdateProfile(
+                    currentUserId,
+                    txtUsername.Text.Trim(),
+                    age,
+                    gender,
+                    newPicPath,
+                    role,
+                    height,
+                    weight,
+                    fitnessGoal,
+                    txtSpecialty.Text.Trim(),
+                    txtBio.Text.Trim()
+                );
 
                 MessageBox.Show("Profile updated successfully!");
             }
-            catch (OleDbException ex)
+            catch (Exception ex)
             {
                 MessageBox.Show("Could not save the profile: " + ex.Message);
             }
@@ -274,50 +224,7 @@ namespace View
 
             try
             {
-                using (OleDbConnection conn = DatabaseHelper.GetConnection())
-                {
-                    conn.Open();
-
-                    using (OleDbTransaction transaction = conn.BeginTransaction())
-                    {
-                        try
-                        {
-                            // Delete the role-specific records first
-                            using (OleDbCommand cmd = new OleDbCommand(
-                                "DELETE FROM Trainees WHERE UserID = ?", conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("?", currentUserId);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            using (OleDbCommand cmd = new OleDbCommand(
-                                "DELETE FROM Trainers WHERE UserID = ?", conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("?", currentUserId);
-                                cmd.ExecuteNonQuery();
-                            }
-
-                            // Delete the main user record
-                            using (OleDbCommand cmd = new OleDbCommand(
-                                "DELETE FROM Users WHERE ID = ?", conn, transaction))
-                            {
-                                cmd.Parameters.AddWithValue("?", currentUserId);
-
-                                int rowsAffected = cmd.ExecuteNonQuery();
-
-                                if (rowsAffected == 0)
-                                    throw new Exception("The user account could not be found.");
-                            }
-
-                            transaction.Commit();
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw;
-                        }
-                    }
-                }
+                UserRepository.DeleteAccount(currentUserId);
 
                 MessageBox.Show(
                     "Your account has been successfully deleted.",
@@ -325,7 +232,7 @@ namespace View
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
-                // Return to the login window
+                // Return to login window
                 LoginWindow loginWindow = new LoginWindow();
                 loginWindow.Show();
 

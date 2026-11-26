@@ -28,9 +28,6 @@ namespace View
             lstExercises.ItemsSource = LoadExercises();
         }
 
-        /// <summary>
-        /// a query on your Exercises table and build one ExerciseItem per row.
-        /// </summary>
         private List<ExerciseItem> LoadExercises()
         {
             var exercises = new List<ExerciseItem>();

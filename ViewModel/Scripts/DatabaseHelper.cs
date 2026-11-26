@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FitnessTrackerProject.Models;
+using System;
 using System.Data;
 using System.Data.OleDb;
 namespace ViewModel.Scripts

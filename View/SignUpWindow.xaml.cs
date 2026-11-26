@@ -1,6 +1,5 @@
 ﻿using Microsoft.Win32;
 using System;
-using System.Data.OleDb;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
@@ -148,26 +147,40 @@ namespace View
 
             try
             {
-                // Check if username exists using DatabaseHelper
-                object countResult = DatabaseHelper.ExecuteScalar(
-                    "SELECT COUNT(*) FROM Users WHERE Username = @Name",
-                    paramsCol => paramsCol.AddWithValue("@Name", newUser.Username)
+                // Hash the password
+                string securedPassword = HashPassword(password);
+
+                // Save the user using DatabaseHelper
+                int newUserId = UserRepository.SignUp(
+                    newUser,
+                    securedPassword,
+                    role,
+                    height,
+                    weight,
+                    goal,
+                    specialty,
+                    bio
                 );
 
-                int userCount = Convert.ToInt32(countResult);
-                if (userCount > 0)
+                // Check if username already exists
+                if (newUserId == -1)
                 {
-                    MessageBox.Show("A profile with this username already exists. Please choose a different name.", "User Exists", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(
+                        "A profile with this username already exists. Please choose a different name.",
+                        "User Exists",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning
+                    );
                     return;
                 }
 
-                string securedPassword = HashPassword(password);
-
-                // Saves the user and the trainee/coach row together
-                int newUserId = SaveNewUser(newUser, securedPassword, role, height, weight, goal, specialty, bio);
-
-                //profile successfully created
-                MessageBox.Show($"{newUser.GetUserRole()} profile successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                // Profile successfully created
+                MessageBox.Show(
+                    $"{newUser.GetUserRole()} profile successfully created!",
+                    "Success",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
 
                 MainWindow mainAppWindow = new MainWindow(newUserId);
                 mainAppWindow.Show();
@@ -175,60 +188,12 @@ namespace View
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving to database: {ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        // Inserts the user and the matching Trainees/Trainers row and returns the new user's ID.
-        private int SaveNewUser(BaseUser user, string passwordHash, string role,
-                                double height, double weight, string goal, string specialty, string bio)
-        {
-            //opening connection
-            using (OleDbConnection connection = DatabaseHelper.GetConnection())
-            {
-                connection.Open();
-
-                using (OleDbTransaction transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        //inserting the user info
-                        DatabaseHelper.ExecuteNonQueryWithCurrentConnection(connection, transaction,
-                            "INSERT INTO Users (Username, Age, Gender, UserRole, ProfilePicPath, [Password]) VALUES (?, ?, ?, ?, ?, ?)",
-                            user.Username, user.Age, user.Gender, user.GetUserRole(), user.ProfilePicPath ?? "", passwordHash);
-
-                        // The ID Access just created for this user
-                        int userId;
-                        using (var command = new OleDbCommand("SELECT @@IDENTITY", connection, transaction))
-                        {
-                            userId = Convert.ToInt32(command.ExecuteScalar());
-                        }
-
-                        if (userId == 0)
-                            throw new Exception("Could not get the new user ID.");
-                        //Inserting specific fields in the correct user id
-                        if (role == "Coach")
-                        {
-                            DatabaseHelper.ExecuteNonQueryWithCurrentConnection(connection, transaction,
-                                "INSERT INTO Trainers (UserID, Specialty, Bio) VALUES (?, ?, ?)",
-                                userId, specialty, bio);
-                        }
-                        else
-                        {
-                            DatabaseHelper.ExecuteNonQueryWithCurrentConnection(connection, transaction,
-                                "INSERT INTO Trainees (UserID, Height, Weight, FitnessGoal) VALUES (?, ?, ?, ?)",
-                                userId, height, weight, goal);
-                        }
-
-                        transaction.Commit();
-                        return userId;
-                    }
-                    catch
-                    {
-                        transaction.Rollback(); // something failed so undo everything
-                        throw;                  // pass the error up so the screen can show it
-                    }
-                }
+                MessageBox.Show(
+                    $"Error saving to database: {ex.Message}",
+                    "Database Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
             }
         }
 

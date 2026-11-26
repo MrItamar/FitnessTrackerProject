@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Data.OleDb;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
@@ -39,46 +38,29 @@ namespace View
                 MessageBox.Show("Please enter both username and password.", "Missing Info", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
-            string securedPassword = HashPassword(password);
-
             try
             {
-                // Uses DatabaseHelper to get the connection
-                using (OleDbConnection connection = DatabaseHelper.GetConnection())
+                string securedPassword = HashPassword(password);
+                int UserId = UserRepository.LogIn(username, securedPassword);
+                if (UserId != -1)
                 {
-                    connection.Open();
-                    //query for selecting the id with the current username and password
-                    string query = "SELECT ID FROM Users WHERE Username = @Name AND [Password] = @Password";
-                    using (OleDbCommand command = new OleDbCommand(query, connection))
-                    {
-                        //running the query
-                        command.Parameters.AddWithValue("@Name", username);
-                        command.Parameters.AddWithValue("@Password", securedPassword);
+                    MessageBox.Show("Login Successful!", "Welcome", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                        object result = command.ExecuteScalar();
-                        //if the user exists log in and go to the MainWindow if not throw a MessageBox explaining 
-                        if (result != null && result != DBNull.Value)
-                        {
-                            int foundUserId = Convert.ToInt32(result);
-
-                            MessageBox.Show("Login Successful!", "Welcome", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                            MainWindow mainAppWindow = new MainWindow(foundUserId);
-                            mainAppWindow.Show();
-                            this.Close();
-                        }
-                        else
-                        {
-                            MessageBox.Show("Invalid username or password. Please try again.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                        }
-                    }
+                    MainWindow mainAppWindow = new MainWindow(UserId);
+                    mainAppWindow.Show();
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Invalid username or password. Please try again.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Database error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Database error: {ex.Message}",
+    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+
         }
         //go to signUp if doesnt have a user already
         private void GoToSignUp_Click(object sender, RoutedEventArgs e)

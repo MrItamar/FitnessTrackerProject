@@ -106,6 +106,7 @@
     <Compile Include="Scripts\PushUpCounter.cs" />
     <Compile Include="Scripts\SquatCounter.cs" />
     <Compile Include="Scripts\TraineeRepository.cs" />
+    <Compile Include="Scripts\UserRepository.cs" />
     <Compile Include="Scripts\WorkoutAnalyzer.cs" />
     <Compile Include="Scripts\WorkoutResult.cs" />
   </ItemGroup>
